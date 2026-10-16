@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** A tiny observable value with a hook (no state library): `useValue(s)` re-renders on change. */
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 export interface Signal<T> {
   value: T;
@@ -27,7 +27,15 @@ export function signal<T>(initial: T): Signal<T> {
 
 export function useValue<T>(s: Signal<T>): T {
   const [, force] = useState(0);
-  useEffect(() => s.subscribe(() => force((n) => n + 1)), [s]);
+  // The subscription starts after the first paint: a change in between (the session answer of a fast node after a
+  // reload) would be missed and the view would stay on its loading state, so the value is compared once more.
+  const seen = useRef(s.value);
+  useEffect(() => {
+    const off = s.subscribe(() => force((n) => n + 1));
+    if (s.value !== seen.current) force((n) => n + 1);
+    return off;
+  }, [s]);
+  seen.current = s.value;
   return s.value;
 }
 
