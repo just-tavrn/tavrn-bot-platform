@@ -10,7 +10,7 @@ services:
       - bot-data:/data
     environment:
       BASE_URL: https://bot.example.org            # the public URL of the dashboard
-      TAVRN_NODE: https://chat.example.org         # optional: the bot's home node (default: from the token)
+      # TAVRN_NODE: http://tavrn:8080                # only for an internal address of the home node (default: discovered from the token)
       TAVRN_BOT_TOKEN: ${TAVRN_BOT_TOKEN}          # the app token of the platform's application
       SESSION_SECRET: ${SESSION_SECRET}            # at least 32 random characters
       SMTP_URL: ${SMTP_URL}                        # smtps://user:password@mail.example.org:465

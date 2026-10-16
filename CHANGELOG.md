@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Without `TAVRN_NODE` the bot resolves its home node through discovery (a domain whose API lives on another host, like
+  `tavrn.org` → `app.tavrn.org`, failed with "could not be reached"); the add link points at the node's web client.
+
 ### Changed
 
 - Moderation uses tavrn's own kicks, bans, timeouts and purges: the module reads the room's audit log every minute

@@ -22,7 +22,9 @@ const bot = fake
   ? fake.asBot()
   : config.botToken
     ? createBot({
-        node: config.tavrnNode || `https://${appTokenClaims(config.botToken).iss}`,
+        // A URL only when set (an internal address): the domain lets the runtime discover the node's endpoints
+        // (`/.well-known/tavrn`, which may delegate the API to another host than the domain itself).
+        node: config.tavrnNode || appTokenClaims(config.botToken).iss,
         token: config.botToken,
         keyFile: process.env.TAVRN_BOT_KEY_FILE ?? join(config.dataDir, "tavrn-key.txt"),
         stateDir: process.env.TAVRN_BOT_STATE_DIR ?? join(config.dataDir, "tavrn-state"),
@@ -42,6 +44,7 @@ if (!config.botToken && !fake) {
 } else {
   // A bot that cannot start (node unreachable, token refused) leaves the dashboard up for a minute, then the process
   // ends so the container's restart policy tries again with a fresh runtime.
+  void platform.discoverWeb();
   platform.start().catch((e: unknown) => {
     log.error("the bot could not start; restarting in a minute", { error: e });
     setTimeout(() => void stop("restart").then(() => process.exit(1)), 60_000).unref();

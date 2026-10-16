@@ -64,7 +64,7 @@ federation).
 |---|---|---|
 | `BASE_URL` | `http://127.0.0.1:8787` | the public URL of the dashboard (links in mails and in the bot's answers; the CSRF check compares the `Origin` with it) |
 | `TAVRN_BOT_TOKEN` | – | the app token; without it the dashboard runs and the bot stays offline. Only read from the environment. |
-| `TAVRN_NODE` | `https://<token issuer>` | the bot's home node, also an internal URL (`http://tavrn:8080`) |
+| `TAVRN_NODE` | the token's issuer (discovered) | only to reach the home node at another address than its discovery document says, e.g. an internal URL (`http://tavrn:8080`); a public node needs nothing here |
 | `SESSION_SECRET` | random per start (development) | at least 32 characters; required in production. Keys the hashes of sessions, mail links and codes. |
 | `SMTP_URL` | – | e.g. `smtps://user:password@mail.example.org:465`; without it the mails (with their links) are written to the log and the UI says so |
 | `MAIL_FROM` | `tavrn bot <bot@localhost>` | sender of the mails |
