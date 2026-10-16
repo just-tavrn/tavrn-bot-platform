@@ -9,7 +9,9 @@ const web = Number(process.env.E2E_WEB_PORT ?? 5197);
 
 export default defineConfig({
   testDir: ".",
-  timeout: 30_000,
+  timeout: 60_000,
+  // The Vite dev server transforms modules on demand: two browsers at once make a reload take a while.
+  expect: { timeout: 15_000 },
   use: { baseURL: `http://127.0.0.1:${web}`, trace: "retain-on-failure" },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

@@ -45,12 +45,15 @@ test("register, connect a room, configure modules and plan a raid", async ({ pag
   await expect(page.getByRole("status")).toHaveText("Saved.");
   const events = page.getByRole("region", { name: "Events" });
   await events.getByRole("button", { name: "+ New" }).click();
-  await events.getByRole("textbox", { name: "Title" }).fill("Molten Core");
+  // Unique per run: the chromium and mobile projects share the fake room and run at the same time.
+  const title = `Molten Core ${Date.now().toString(36)}`;
+  await events.getByRole("textbox", { name: "Title" }).fill(title);
   await events.getByLabel(/^Start/).fill("2030-01-10T20:00");
   await events.getByRole("spinbutton", { name: "Raid size (0 = any)" }).fill("20");
   await events.getByRole("button", { name: "Save" }).click();
-  await expect(events.getByRole("cell", { name: "Molten Core" })).toBeVisible();
-  await expect(events.getByRole("cell", { name: "0/20" })).toBeVisible();
+  const rowOf = events.getByRole("row").filter({ has: page.getByRole("cell", { name: title, exact: true }) });
+  await expect(rowOf).toBeVisible();
+  await expect(rowOf.getByRole("cell", { name: "0/20" })).toBeVisible();
 });
 
 test("the public leaderboard is off by default", async ({ page }) => {
