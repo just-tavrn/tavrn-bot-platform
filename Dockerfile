@@ -2,7 +2,7 @@
 # One image: the dashboard, the API and the bot in one Node.js process. Data (SQLite, the bot's key file and its
 # encryption state) lives in /data: mount a volume there and back it up.
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -11,14 +11,14 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:24-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-alpine
+FROM node:25-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=8787 DATA_DIR=/data
 COPY --from=deps /app/node_modules ./node_modules
