@@ -29,7 +29,8 @@ export type Item = Record<string, unknown> & { id: string | number };
 /** A list of records a module keeps in its own tables (raid events, games, cases), edited with the generic form. */
 export interface Collection {
   title: string;
-  fields: Field[];
+  /** The form of one item; a function when the choices depend on the room (the raid helper's games). */
+  fields: Field[] | ((room: Room) => Field[]);
   /** Keys shown as columns of the list. */
   columns: string[];
   readonly?: boolean;

@@ -1,0 +1,231 @@
+{
+ "key": "wow",
+ "name": "World of Warcraft",
+ "classes": [
+  {
+   "name": "Death Knight",
+   "specs": [
+    {
+     "name": "Blood",
+     "role": "tank"
+    },
+    {
+     "name": "Frost",
+     "role": "dps"
+    },
+    {
+     "name": "Unholy",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Demon Hunter",
+   "specs": [
+    {
+     "name": "Havoc",
+     "role": "dps"
+    },
+    {
+     "name": "Vengeance",
+     "role": "tank"
+    },
+    {
+     "name": "Devourer",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Druid",
+   "specs": [
+    {
+     "name": "Balance",
+     "role": "dps"
+    },
+    {
+     "name": "Feral",
+     "role": "dps"
+    },
+    {
+     "name": "Guardian",
+     "role": "tank"
+    },
+    {
+     "name": "Restoration",
+     "role": "healer"
+    }
+   ]
+  },
+  {
+   "name": "Evoker",
+   "specs": [
+    {
+     "name": "Devastation",
+     "role": "dps"
+    },
+    {
+     "name": "Preservation",
+     "role": "healer"
+    },
+    {
+     "name": "Augmentation",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Hunter",
+   "specs": [
+    {
+     "name": "Beast Mastery",
+     "role": "dps"
+    },
+    {
+     "name": "Marksmanship",
+     "role": "dps"
+    },
+    {
+     "name": "Survival",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Mage",
+   "specs": [
+    {
+     "name": "Arcane",
+     "role": "dps"
+    },
+    {
+     "name": "Fire",
+     "role": "dps"
+    },
+    {
+     "name": "Frost",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Monk",
+   "specs": [
+    {
+     "name": "Brewmaster",
+     "role": "tank"
+    },
+    {
+     "name": "Mistweaver",
+     "role": "healer"
+    },
+    {
+     "name": "Windwalker",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Paladin",
+   "specs": [
+    {
+     "name": "Holy",
+     "role": "healer"
+    },
+    {
+     "name": "Protection",
+     "role": "tank"
+    },
+    {
+     "name": "Retribution",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Priest",
+   "specs": [
+    {
+     "name": "Discipline",
+     "role": "healer"
+    },
+    {
+     "name": "Holy",
+     "role": "healer"
+    },
+    {
+     "name": "Shadow",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Rogue",
+   "specs": [
+    {
+     "name": "Assassination",
+     "role": "dps"
+    },
+    {
+     "name": "Outlaw",
+     "role": "dps"
+    },
+    {
+     "name": "Subtlety",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Shaman",
+   "specs": [
+    {
+     "name": "Elemental",
+     "role": "dps"
+    },
+    {
+     "name": "Enhancement",
+     "role": "dps"
+    },
+    {
+     "name": "Restoration",
+     "role": "healer"
+    }
+   ]
+  },
+  {
+   "name": "Warlock",
+   "specs": [
+    {
+     "name": "Affliction",
+     "role": "dps"
+    },
+    {
+     "name": "Demonology",
+     "role": "dps"
+    },
+    {
+     "name": "Destruction",
+     "role": "dps"
+    }
+   ]
+  },
+  {
+   "name": "Warrior",
+   "specs": [
+    {
+     "name": "Arms",
+     "role": "dps"
+    },
+    {
+     "name": "Fury",
+     "role": "dps"
+    },
+    {
+     "name": "Protection",
+     "role": "tank"
+    }
+   ]
+  }
+ ]
+}

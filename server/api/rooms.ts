@@ -70,7 +70,7 @@ export function roomRoutes({ config, db, platform }: Deps): Hono<Env> {
         description: m.description,
         schema: [ENABLED_FIELD, ...m.schema],
         settings: platform.settings(room, m),
-        collections: Object.entries(platform.collections(m.id)).map(([key, col]) => ({ key, title: col.title, fields: col.fields, columns: col.columns, readonly: !!col.readonly })),
+        collections: Object.entries(platform.collections(m.id)).map(([key, col]) => ({ key, title: col.title, fields: typeof col.fields === "function" ? col.fields(room) : col.fields, columns: col.columns, readonly: !!col.readonly })),
       })),
     });
   });
@@ -102,7 +102,7 @@ export function roomRoutes({ config, db, platform }: Deps): Hono<Env> {
     const { room, address } = await managed(c);
     const col = collectionOf(c);
     if (col.readonly || !col.save) throw new HttpError(403, "readonly", "This list cannot be edited");
-    const item = clean(col.fields, await c.req.json(), {}, await platform.choices(room));
+    const item = clean(typeof col.fields === "function" ? col.fields(room) : col.fields, await c.req.json(), {}, await platform.choices(room));
     return c.json(await col.save(room, item, id, address));
   };
   r.post("/rooms/:id/modules/:mod/:col", (c) => save(c, null));

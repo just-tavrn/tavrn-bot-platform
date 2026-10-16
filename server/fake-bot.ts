@@ -54,6 +54,7 @@ export class FakeInteraction {
   readonly locale = "en";
   readonly encrypted = false;
   readonly threadId = null;
+  modalCustomId: string | null = null;
   constructor(
     readonly user: string,
     readonly userId: string,
@@ -228,6 +229,7 @@ export class FakeBot {
   }
   async submit(modalId: string, fields: Record<string, string>, who: FakeUser = OWNER, messageId: string | null = null) {
     const i = new FakeInteraction(who.user, who.userId, who.permissions ?? 0n, FAKE_ROOM, CH.general, {}, { id: "", name: "" }, null, messageId, null, fields);
+    i.modalCustomId = modalId;
     await this.find(this.modals, modalId)(i);
     return i;
   }
