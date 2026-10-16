@@ -52,7 +52,7 @@ export default defineModule<S>({
     { key: "timeoutMinutes", type: "number", label: "Timeout length (minutes)", min: 1, max: 40320 },
     { key: "exemptModerators", type: "boolean", label: "Skip moderators (Manage messages)" },
     { key: "exemptRoles", type: "roles", label: "Exempt roles", max: 20 },
-    { key: "exemptChannels", type: "strings", label: "Exempt channel ids", help: "Channel ids, one per entry.", max: 50 },
+    { key: "exemptChannels", type: "channels", label: "Exempt channels", max: 50 },
     on("wordsOn", "Block words", "Blocked words"),
     { key: "words", type: "strings", label: "Words", help: "Whole words, case-insensitive; /regex/ for patterns (no nested quantifiers).", max: 200 },
     action("wordsAction"),

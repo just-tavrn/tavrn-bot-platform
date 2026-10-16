@@ -6,7 +6,7 @@
  */
 import { randomBytes } from "node:crypto";
 
-export type FieldType = "boolean" | "number" | "string" | "text" | "select" | "channel" | "role" | "roles" | "strings" | "datetime" | "items";
+export type FieldType = "boolean" | "number" | "string" | "text" | "select" | "channel" | "channels" | "role" | "roles" | "strings" | "datetime" | "items";
 
 export interface Field {
   key: string;
@@ -54,6 +54,7 @@ export function emptyValue(f: Field): unknown {
       return f.min ?? 0;
     case "select":
       return f.options?.[0]?.value ?? "";
+    case "channels":
     case "roles":
     case "strings":
     case "items":
@@ -111,11 +112,13 @@ function value(f: Field, v: unknown, room: RoomChoices, p: string): unknown {
       if (known && !known.has(v)) fail(`is not a ${f.type} of this room`);
       return v;
     }
+    case "channels":
     case "roles":
     case "strings": {
       if (!Array.isArray(v)) return fail("must be a list");
       if (v.length > (f.max ?? 50)) fail(`at most ${f.max ?? 50} entries`);
-      const item: Field = f.type === "roles" ? { key: "", type: "role", label: "", required: true } : { key: "", type: "string", label: "", max: 200, required: true };
+      const type = ({ channels: "channel", roles: "role", strings: "string" } as const)[f.type];
+      const item: Field = { key: "", type, label: "", max: 200, required: true };
       return [...new Set(v.map((x, i) => value(item, x, room, `${p}[${i}]`) as string))];
     }
     case "items": {
