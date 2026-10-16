@@ -7,7 +7,9 @@ import levels from "./levels";
 import moderation from "./moderation";
 import polls from "./polls";
 import reactionRoles from "./reaction-roles";
+import reminders from "./reminders";
 import socialAlerts from "./social-alerts";
+import starboard from "./starboard";
 import welcome from "./welcome";
 
-export const MODULES: Module<any>[] = [welcome, automod, moderation, levels, reactionRoles, customCommands, polls, socialAlerts];
+export const MODULES: Module<any>[] = [welcome, automod, moderation, levels, reactionRoles, customCommands, polls, socialAlerts, starboard, reminders];
