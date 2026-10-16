@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- "Send the confirmation mail again" on the login page for an unconfirmed account (`POST /auth/resend`, with the
+  password; the answer never tells whether an address exists).
+
+### Changed
+
+- SMTP is configured with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USER` and `SMTP_PASSWORD` instead of one
+  URL (no URL encoding of passwords); the connection and login are verified at the start and logged.
+
 ### Fixed
 
 - Without `TAVRN_NODE` the bot resolves its home node through discovery (a domain whose API lives on another host, like

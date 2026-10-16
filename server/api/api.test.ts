@@ -48,6 +48,20 @@ describe("accounts", () => {
     expect((await s.call("POST", "/api/auth/login", { email: "maria@example.org", password: "correct horse battery" })).status).toBe(200);
   });
 
+  it("sends the confirmation mail again, only with the right password", async () => {
+    const s = server();
+    await s.call("POST", "/api/auth/register", { email: "rita@example.org", password: "correct horse battery" });
+    const first = s.token();
+    expect((await s.call("POST", "/api/auth/resend", { email: "rita@example.org", password: "wrong password!" })).json).toEqual({ ok: true, mailConfigured: false });
+    expect(s.token()).toBe(first); // no new mail
+    expect((await s.call("POST", "/api/auth/resend", { email: "rita@example.org", password: "correct horse battery" })).json).toEqual({ ok: true, mailConfigured: false });
+    const second = s.token();
+    expect(second).not.toBe(first);
+    expect((await s.call("POST", "/api/auth/confirm", { token: second })).status).toBe(200);
+    expect((await s.call("POST", "/api/auth/resend", { email: "rita@example.org", password: "correct horse battery" })).json).toEqual({ ok: true, mailConfigured: false });
+    expect(s.token()).toBe(second); // verified: nothing is sent
+  });
+
   it("does not reveal registered addresses and refuses foreign origins", async () => {
     const s = server();
     await s.account();

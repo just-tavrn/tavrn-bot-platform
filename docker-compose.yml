@@ -13,7 +13,11 @@ services:
       # TAVRN_NODE: http://tavrn:8080                # only for an internal address of the home node (default: discovered from the token)
       TAVRN_BOT_TOKEN: ${TAVRN_BOT_TOKEN}          # the app token of the platform's application
       SESSION_SECRET: ${SESSION_SECRET}            # at least 32 random characters
-      SMTP_URL: ${SMTP_URL}                        # smtps://user:password@mail.example.org:465
+      SMTP_HOST: mail.example.org                  # without it the mails only go to the log
+      SMTP_PORT: "465"                             # 465 = TLS from the start, 587 = STARTTLS
+      SMTP_SECURITY: tls                           # tls | starttls | none
+      SMTP_USER: bot@example.org
+      SMTP_PASSWORD: ${SMTP_PASSWORD}              # plain text, no URL encoding
       MAIL_FROM: "tavrn bot <bot@example.org>"
       ADMIN_EMAILS: admin@example.org              # operators (comma-separated)
       TRUST_PROXY: "1"                             # read X-Forwarded-For from the proxy

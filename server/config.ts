@@ -2,6 +2,31 @@
 /** The platform's configuration, read once from the environment (README.md, "Configuration"). */
 import { randomBytes } from "node:crypto";
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  /** `tls`: TLS from the start (465); `starttls`: plain connection upgraded with STARTTLS (587); `none`: plain (local relays). */
+  security: "tls" | "starttls" | "none";
+  user: string;
+  password: string;
+}
+
+/**
+ * `SMTP_HOST` with `SMTP_PORT` (default 465 for `tls`, 587 otherwise), `SMTP_SECURITY` (`tls` | `starttls` | `none`,
+ * default `tls` on port 465, else `starttls`), `SMTP_USER` and `SMTP_PASSWORD` (plain text: no URL encoding needed).
+ * Without a host there is no mail. `SMTP_URL` is not read any more.
+ */
+export function smtpConfig(env: NodeJS.ProcessEnv): SmtpConfig | null {
+  const host = env.SMTP_HOST?.trim();
+  if (!host) return null;
+  const securityRaw = env.SMTP_SECURITY?.trim().toLowerCase();
+  const portRaw = Number(env.SMTP_PORT ?? "");
+  const security: SmtpConfig["security"] =
+    securityRaw === "tls" || securityRaw === "starttls" || securityRaw === "none" ? securityRaw : portRaw === 465 || !portRaw ? "tls" : "starttls";
+  const port = portRaw > 0 && portRaw < 65536 ? portRaw : security === "tls" ? 465 : 587;
+  return { host, port, security, user: env.SMTP_USER ?? "", password: env.SMTP_PASSWORD ?? "" };
+}
+
 export interface Config {
   baseUrl: string;
   port: number;
@@ -11,7 +36,8 @@ export interface Config {
   /** The node's domain (from TAVRN_NODE), for the add link. */
   nodeDomain: string;
   sessionSecret: string;
-  smtpUrl: string;
+  /** SMTP settings, or null when mail is not configured (links go to the log). */
+  smtp: SmtpConfig | null;
   mailFrom: string;
   adminEmails: string[];
   trustProxy: boolean;
@@ -43,7 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     botToken: env.TAVRN_BOT_TOKEN ?? "",
     nodeDomain: tavrnNode.replace(/^https?:\/\//, "").split("/")[0] ?? "",
     sessionSecret,
-    smtpUrl: env.SMTP_URL ?? "",
+    smtp: smtpConfig(env),
     mailFrom: env.MAIL_FROM ?? "tavrn bot <bot@localhost>",
     adminEmails: (env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
     trustProxy: env.TRUST_PROXY === "1",
