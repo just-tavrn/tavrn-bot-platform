@@ -75,6 +75,20 @@ export function authRoutes({ config, db, mailer, platform }: Deps): Hono<Env> {
     return c.json({ ok: true });
   });
 
+  // The confirmation mail again (the first one failed or got lost): only with the password, so nobody can make the
+  // server mail a stranger, and the answer is the same whether the address exists, is verified or not.
+  r.post("/auth/resend", async (c) => {
+    const b = await body(c, z.object({ email, password: z.string().max(200) }));
+    limit(c, b.email);
+    const u = userBy(b.email);
+    const ok = await verifyPassword(b.password, u?.password ?? DUMMY_HASH);
+    if (u && ok && !u.verified) {
+      const token = createToken(db, config.sessionSecret, u.id, "confirm", 24 * HOUR);
+      await send(b.email, "Confirm your tavrn bot account", `Confirm your address to finish the registration: ${link("/confirm", token)}\n\nThe link is valid for 24 hours.`);
+    }
+    return c.json({ ok: true, mailConfigured: mailer.configured });
+  });
+
   r.post("/auth/logout", (c) => {
     const sid = getCookie(c, "sid");
     if (sid) endSession(db, config.sessionSecret, sid);

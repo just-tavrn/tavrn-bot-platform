@@ -2,7 +2,7 @@
 /** Log in, register, confirm the address, reset the password. */
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { api, config, loadSession } from "../api";
+import { ApiError, api, config, loadSession } from "../api";
 import { Link } from "../app";
 import { t } from "../i18n";
 import { navigate } from "../state";
@@ -52,17 +52,36 @@ const Alert = ({ text, ok }: { text: string; ok?: boolean }) => (text ? <p role=
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // The address is not confirmed yet: offer the confirmation mail again (the first one may have failed).
+  const [unverified, setUnverified] = useState(false);
+  const [resent, setResent] = useState(false);
   const { error, busy, submit } = useSubmit(async () => {
-    await api("POST", "/auth/login", { email, password });
+    setUnverified(false);
+    try {
+      await api("POST", "/auth/login", { email, password });
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "unverified") setUnverified(true);
+      throw e;
+    }
     await loadSession();
     navigate("/dashboard");
   });
+  const resend = async () => {
+    await api("POST", "/auth/resend", { email, password }).catch(() => undefined);
+    setResent(true);
+  };
   return (
     <Box title={t("login")}>
       <form class="space-y-4" onSubmit={submit}>
         <Input label={t("email")} type="email" value={email} onInput={setEmail} autocomplete="email" />
         <Input label={t("password")} type="password" value={password} onInput={setPassword} autocomplete="current-password" />
         <Alert text={error} />
+        {unverified && !resent && (
+          <button type="button" class="btn w-full" onClick={resend}>
+            {t("resend")}
+          </button>
+        )}
+        {resent && <Alert ok text={t("checkMail")} />}
         <button class="btn btn-primary w-full" disabled={busy}>
           {t("login")}
         </button>
