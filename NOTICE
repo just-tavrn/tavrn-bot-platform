@@ -1,0 +1,8 @@
+tavrn bot platform
+Copyright 2026 The tavrn authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). The name "tavrn" and its logo are trademarks of the
+tavrn project and are not covered by the license.
+
+The built web UI includes the Inter typeface by Rasmus Andersson (SIL Open Font License 1.1) and Preact (MIT
+License). The container image includes the npm dependencies listed in package.json under their own licenses.

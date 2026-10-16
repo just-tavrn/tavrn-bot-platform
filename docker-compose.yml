@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Example: the platform behind a reverse proxy that terminates HTTPS (README.md, "Reverse proxy").
+services:
+  bot:
+    image: ghcr.io/just-tavrn/tavrn-bot-platform:edge
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - bot-data:/data
+    environment:
+      BASE_URL: https://bot.example.org            # the public URL of the dashboard
+      TAVRN_NODE: https://chat.example.org         # optional: the bot's home node (default: from the token)
+      TAVRN_BOT_TOKEN: ${TAVRN_BOT_TOKEN}          # the app token of the platform's application
+      SESSION_SECRET: ${SESSION_SECRET}            # at least 32 random characters
+      SMTP_URL: ${SMTP_URL}                        # smtps://user:password@mail.example.org:465
+      MAIL_FROM: "tavrn bot <bot@example.org>"
+      ADMIN_EMAILS: admin@example.org              # operators (comma-separated)
+      TRUST_PROXY: "1"                             # read X-Forwarded-For from the proxy
+      TZ: UTC
+      # TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET: Twitch live alerts (optional)
+volumes:
+  bot-data:
