@@ -2,42 +2,42 @@
 import { describe, expect, it } from "vitest";
 import { MEMBER, OWNER } from "../../fake-bot";
 import { setup } from "../../test-utils";
-import polls, { parsePoll, tally } from "./index";
+import polls, { parsePoll, summary } from "./index";
 
-describe("poll maths", () => {
-  it("counts votes and voters", () => {
-    expect(tally(3, [{ user: "a", choice: 0 }, { user: "b", choice: 0 }, { user: "b", choice: 2 }, { user: "c", choice: 9 }])).toEqual({ counts: [2, 0, 1], voters: 3 });
+describe("poll form and summary", () => {
+  it("checks the form", () => {
+    expect(parsePoll({ question: "Pizza?", options: "Yes\nNo\nYes", minutes: "", choices: "" })).toEqual({ question: "Pizza?", options: ["Yes", "No"], maxChoices: 1, minutes: null });
+    expect(parsePoll({ question: "Q", options: "one" })).toContain("2 to 10");
+    expect(parsePoll({ question: "", options: "a\nb" })).toContain("question");
+    expect(parsePoll({ question: "Q", options: "a\nb", minutes: "0" })).toContain("duration");
+    expect(parsePoll({ question: "Q", options: "a\nb", choices: "3" })).toContain("Choices");
   });
-  it("checks question, options and duration", () => {
-    expect(parsePoll("Q?", "a; b; a", "")).toEqual({ question: "Q?", options: ["a", "b"], minutes: null });
-    expect(parsePoll("Q?", "only one", null)).toContain("2 to 10");
-    expect(parsePoll("", "a;b", null)).toContain("question");
-    expect(parsePoll("Q", "a;b", "0")).toContain("duration");
+  it("summarizes the tally", () => {
+    const t = { voters: 4, options: [{ id: "o1", label: "Yes", count: 3 }, { id: "o2", label: "No", count: 1 }], best: ["o1"] };
+    expect(summary("Pizza?", t)).toBe('📊 Results of "Pizza?" (4 votes):\nYes: 3 (75%) 🏆\nNo: 1 (25%)');
+    expect(summary("Pizza?", { voters: 0, options: [], best: [] })).toContain("without votes");
   });
 });
 
 describe("polls", () => {
-  it("posts a card, counts single-choice votes in place and closes for the author only", async () => {
+  it("creates a native poll from the form and posts the summary when it closes", async () => {
     const t = setup([polls]);
     await t.configure("polls");
-    expect((await t.fake.invoke("poll", { question: "Pizza?", options: "Yes; No" })).text).toBe("Your poll is up.");
-    const id = t.fake.sent[0]!.id;
-    const v1 = await t.fake.click("poll:v:1:0", { who: MEMBER, messageId: id });
-    expect(v1.text).toContain("Yes — 1 (100%)");
-    const v2 = await t.fake.click("poll:v:1:1", { who: MEMBER, messageId: id });
-    expect(v2.text).toContain("Yes — 0 (0%)");
-    expect(v2.text).toContain("No — 1 (100%)");
-    expect((await t.fake.click("poll:v:1:1", { who: MEMBER, messageId: "other" })).text).toContain("does not exist");
-    expect((await t.fake.click("poll:close:1", { who: MEMBER, messageId: id })).text).toContain("Only the author");
-    const closed = await t.fake.click("poll:close:1", { who: OWNER, messageId: id });
-    expect(closed.text).toContain("Closed · 1 voters");
-    expect((await t.fake.click("poll:v:1:0", { who: MEMBER, messageId: id })).text).toContain("closed");
+    expect((await t.fake.invoke("poll", {}, OWNER)).answers[0]?.type).toBe("modal");
+    expect((await t.fake.submit("poll:create", { question: "Pizza?", options: "Yes\nNo", minutes: "5" })).text).toBe("Your poll is up.");
+    expect(t.fake.polls[0]?.poll).toEqual({ kind: "choice", question: "Pizza?", options: ["Yes", "No"], maxChoices: 1 });
+    t.db.run("UPDATE polls SET closes_at = 0");
+    t.fake.tally = { voters: 1, options: [{ id: "o1", label: "Yes", count: 1 }, { id: "o2", label: "No", count: 0 }], best: ["o1"] };
+    const job = (t.platform as unknown as { jobs: [number, () => Promise<void>][] }).jobs[0]![1];
+    await job();
+    expect(t.fake.sent[0]).toMatchObject({ content: expect.stringContaining("Yes: 1 (100%) 🏆"), opts: { replyTo: t.fake.polls[0]!.id } });
   });
 
-  it("opens a form without arguments", async () => {
+  it("needs Send polls unless the room allows everybody", async () => {
     const t = setup([polls]);
     await t.configure("polls");
-    expect((await t.fake.invoke("poll")).answers[0]?.type).toBe("modal");
-    expect((await t.fake.submit("poll:create", { question: "Q", options: "a\nb\nc", minutes: "" })).text).toBe("Your poll is up.");
+    expect((await t.fake.invoke("poll", {}, MEMBER)).text).toContain("may not send polls");
+    await t.configure("polls", { allowWithoutPermission: true });
+    expect((await t.fake.invoke("poll", {}, MEMBER)).answers[0]?.type).toBe("modal");
   });
 });

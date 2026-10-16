@@ -9,7 +9,7 @@ import { Permission, hasPermission, parsePermissions, roomLevelPermissions, type
 
 export type BotPort = Pick<
   Bot,
-  "on" | "command" | "component" | "modal" | "setCommands" | "send" | "edit" | "deleteMessage" | "messages" | "room" | "members" | "timeout" | "kick" | "ban" | "unban" | "dm" | "api" | "start" | "stop" | "info"
+  "on" | "command" | "component" | "modal" | "setCommands" | "send" | "createPoll" | "votes" | "edit" | "deleteMessage" | "messages" | "room" | "members" | "timeout" | "kick" | "ban" | "unban" | "dm" | "api" | "start" | "stop" | "info"
 >;
 
 /** `<node>/<id>` of a room, a channel (= its conversation) or anything else the node names by id. */

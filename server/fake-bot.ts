@@ -146,6 +146,17 @@ export class FakeBot {
     this.sent.push({ id, conversation: conv, content, opts });
     return { id, conversation_id: conv.split("/").pop() };
   }
+  readonly polls: { id: string; conversation: string; poll: unknown; opts: unknown }[] = [];
+  /** The tally `votes()` reports (tests set it). */
+  tally = { voters: 0, options: [] as { id: string; label: string; count: number }[], best: [] as string[] };
+  async createPoll(conversation: string, poll: unknown, opts?: unknown) {
+    const id = `p${++this.n}`;
+    this.polls.push({ id, conversation, poll, opts });
+    return { id };
+  }
+  async votes() {
+    return { tally: this.tally };
+  }
   async edit(conversation: string, id: string, content: unknown) {
     this.edits.push({ conversation, id, content });
     return { id };

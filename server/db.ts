@@ -40,11 +40,8 @@ const MIGRATIONS: string[] = [
    CREATE INDEX xp_rank ON xp (room_id, xp DESC);
    CREATE TABLE polls (
      id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-     conversation TEXT NOT NULL, message_id TEXT NOT NULL DEFAULT '', author TEXT NOT NULL, question TEXT NOT NULL,
-     options TEXT NOT NULL, multiple INTEGER NOT NULL DEFAULT 0, closes_at INTEGER, closed INTEGER NOT NULL DEFAULT 0);
-   CREATE TABLE poll_votes (
-     poll_id INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE, user TEXT NOT NULL, choice INTEGER NOT NULL,
-     PRIMARY KEY (poll_id, user, choice));
+     conversation TEXT NOT NULL, message_id TEXT NOT NULL, question TEXT NOT NULL, closes_at INTEGER NOT NULL,
+     done INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE raid_events (
      id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE, json TEXT NOT NULL,
      starts_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open', conversation TEXT NOT NULL DEFAULT '',
