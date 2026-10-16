@@ -4,6 +4,7 @@
  * where it is on, the `/connect` and `/dashboard` commands, the announcement of all commands and the scheduler.
  */
 import { appTokenClaims, type BotLogger, type Interaction } from "@tavrn/bot";
+import { resolveNode } from "@tavrn/sdk";
 import type { CommandDefinition } from "@tavrn/sdk";
 import { normalizeCode, takeToken } from "./auth";
 import type { Config } from "./config";
@@ -20,6 +21,9 @@ interface RoomRow {
   installed: number;
   disabled: number;
 }
+
+/** `<origin>/add/<application id>` without a double slash. */
+export const addLinkOf = (origin: string, app: string): string => `${origin.replace(/\/+$/, "")}/add/${app}`;
 
 export const ENABLED_FIELD: Field = { key: "enabled", type: "boolean", label: "Enabled" };
 const ANNOUNCE_DELAY_MS = 20_000;
@@ -59,14 +63,31 @@ export class Platform {
     }
   }
 
-  /** The add link of the bot (APPLICATIONS.md §4.1), from the token's claims. */
+  /** The origin of the home node's web client (discovery `web`), where the add link lives; null until discovered. */
+  private webOrigin: string | null = null;
+
+  /**
+   * The add link of the bot (APPLICATIONS.md §4.1): `<web client>/add/<application id>`. The web client is where the
+   * discovery document points (`tavrn.org` keeps its client on `app.tavrn.org`); until it is known, the domain.
+   */
   get addLink(): string | null {
     if (this.config.fakeBot) return "https://fake.example/add/01FAKEAPP";
     try {
       const c = appTokenClaims(this.config.botToken);
-      return `https://${c.iss}/add/${c.app}`;
+      return addLinkOf(this.webOrigin ?? `https://${c.iss}`, c.app);
     } catch {
       return null;
+    }
+  }
+
+  /** Discovers the home node's web client once (retried on the next start when the node was not reachable). */
+  async discoverWeb(): Promise<void> {
+    if (this.config.fakeBot || !this.config.botToken) return;
+    try {
+      const { web } = await resolveNode(appTokenClaims(this.config.botToken).iss);
+      this.webOrigin = web;
+    } catch (e) {
+      this.log.warn("the home node's web client was not discovered; the add link uses the domain", { error: e });
     }
   }
 
