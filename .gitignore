@@ -1,0 +1,38 @@
+# Dependencies and build output
+node_modules/
+dist/
+server/public/
+*.tsbuildinfo
+
+# Local data, environment and key files: never part of the repository
+data/
+.data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+tavrn-key-*.txt
+.tavrn-state/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Agent settings, memory files and planning notes: never part of the repository
+.claude/
+CLAUDE.md
+docs/PLAN.md
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Private pattern list of the pre-publication check
+.publish-check.private
