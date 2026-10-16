@@ -5,26 +5,9 @@
  * commands, feeds, role menus); every item gets a stable `id`.
  */
 import { randomBytes } from "node:crypto";
+import { emptyValue, type Field } from "./fields";
 
-export type FieldType = "boolean" | "number" | "string" | "text" | "select" | "channel" | "channels" | "role" | "roles" | "strings" | "datetime" | "items";
-
-export interface Field {
-  key: string;
-  type: FieldType;
-  label: string;
-  help?: string;
-  /** A heading shown above this field (groups long forms). */
-  section?: string;
-  /** number: range; string/text: maximum length; strings/roles/items: maximum count. */
-  min?: number;
-  max?: number;
-  options?: { value: string; label: string }[];
-  /** items: the fields of one item and the key shown as its title in the list. */
-  fields?: Field[];
-  itemLabel?: string;
-  /** Optional strings may be empty; required ones not. */
-  required?: boolean;
-}
+export type { Field, FieldType } from "./fields";
 
 /** What the room offers for channel and role fields (null: not known, only the id format is checked). */
 export interface RoomChoices {
@@ -44,25 +27,6 @@ export class ValidationError extends Error {
 const ID = /^[0-9A-Za-z_-]{1,64}$/;
 const DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const DEFAULT_TEXT_MAX: Record<string, number> = { string: 200, text: 2000 };
-
-/** The empty value of a field (new items, missing keys). */
-export function emptyValue(f: Field): unknown {
-  switch (f.type) {
-    case "boolean":
-      return false;
-    case "number":
-      return f.min ?? 0;
-    case "select":
-      return f.options?.[0]?.value ?? "";
-    case "channels":
-    case "roles":
-    case "strings":
-    case "items":
-      return [];
-    default:
-      return "";
-  }
-}
 
 /** Checks and normalizes `input` against `fields`; unknown keys are dropped, missing ones take `defaults`. */
 export function clean(fields: Field[], input: unknown, defaults: Record<string, unknown>, room: RoomChoices, path = ""): Record<string, unknown> {

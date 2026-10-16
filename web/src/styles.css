@@ -1,0 +1,64 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* Design tokens copied from the tavrn website (src/styles/tokens.css), which copies them from the web client.
+   Dark only; contrast pairs are the ones verified there (fg-2 on bg-0..bg-3 >= 4.5:1, accent text >= 5.2:1). */
+@theme {
+  --color-bg-0: #0f1115;
+  --color-bg-1: #161920;
+  --color-bg-2: #1d2129;
+  --color-bg-3: #262b35;
+  --color-line: #2f3542;
+  --color-line-strong: #737b8c;
+  --color-fg-0: #f3f4f6;
+  --color-fg-1: #b4bac6;
+  --color-fg-2: #8a92a2;
+  --color-accent: #33aea6;
+  --color-accent-hover: #40b9b1;
+  --color-accent-soft: #33aea626;
+  --color-accent-text: #06201f;
+  --color-ok: #45b980;
+  --color-warn: #d9b04e;
+  --color-danger: #e87a76;
+  --color-danger-solid: #b03a3d;
+  --color-danger-solid-hover: #bd4044;
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-md: 0.5rem;
+}
+
+html {
+  background: var(--color-bg-0);
+  color: var(--color-fg-0);
+  font-family: var(--font-sans);
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+@layer components {
+  .btn {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line-strong px-4 text-sm font-medium text-fg-0 hover:bg-bg-3 disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply border-accent bg-accent text-accent-text hover:bg-accent-hover;
+  }
+  .btn-danger {
+    @apply border-danger-solid bg-danger-solid text-white hover:bg-danger-solid-hover;
+  }
+  .input {
+    @apply min-h-10 w-full rounded-md border border-line-strong bg-bg-3 px-3 py-2 text-sm text-fg-0 placeholder:text-fg-2;
+  }
+  .card {
+    @apply rounded-md border border-line bg-bg-2 p-4;
+  }
+  .link {
+    @apply text-accent underline-offset-2 hover:underline;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
