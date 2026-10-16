@@ -16,7 +16,7 @@ const HOUR = 3_600_000;
 export function authRoutes({ config, db, mailer, platform }: Deps): Hono<Env> {
   const r = new Hono<Env>();
   const perIp = new RateLimit(20, 15 * 60_000);
-  const perEmail = new RateLimit(5, HOUR);
+  const perEmail = new RateLimit(10, 15 * 60_000);
   const limit = (c: Context, key?: string) => {
     if (!perIp.take(`${c.req.path}|${clientIp(c, config.trustProxy)}`) || (key && !perEmail.take(`${c.req.path}|${key}`))) throw new HttpError(429, "rate_limited", "Too many attempts, try again later");
   };

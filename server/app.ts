@@ -133,6 +133,10 @@ export function createApp(deps: Deps): Hono<Env> {
       return c.json({ answer: i.text });
     });
   }
+  if (deps.fake) {
+    // Test hook (FAKE_BOT=1 only): the mails the platform sent, for the e2e test's confirmation link.
+    app.get("/api/test/mails", (c) => c.json((deps.mailer as { sent?: unknown[] }).sent ?? []));
+  }
   app.all("/api/*", (c) => c.json({ error: "not_found", message: "Unknown route" }, 404));
 
   const root = join(import.meta.dirname, "public");

@@ -62,6 +62,7 @@ export class Platform {
 
   /** The add link of the bot (APPLICATIONS.md §4.1), from the token's claims. */
   get addLink(): string | null {
+    if (this.config.fakeBot) return "https://fake.example/add/01FAKEAPP";
     try {
       const c = appTokenClaims(this.config.botToken);
       return `https://${c.iss}/add/${c.app}`;
