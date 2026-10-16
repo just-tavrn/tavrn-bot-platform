@@ -12,13 +12,15 @@ describe("custom commands", () => {
     expect(render({ response: "Hi {user} in {room}, {count} here" }, { user: "a@b", room: "R", count: 3 })).toBe("Hi @a@b in R, 3 here");
   });
 
-  it("announces the names without colliding with module commands and answers per room", async () => {
+  it("announces the names without colliding with module or client commands and answers per room", async () => {
     const t = setup([moderation, custom]);
-    const { warnings } = await t.configure("custom-commands", { commands: [cmd("rules"), cmd("ban"), cmd("Bad Name")] });
-    expect(warnings[0]).toContain("Bad Name");
+    const { warnings } = await t.configure("custom-commands", { commands: [cmd("rules"), cmd("warn"), cmd("ban"), cmd("Bad Name")] });
+    expect(warnings).toEqual(["/ban is a command of the tavrn client itself: use /cmd ban or another name.", expect.stringContaining("Bad Name")]);
     const names = t.platform.commandSet().map((d) => d.name);
-    expect(names.filter((n) => n === "ban")).toHaveLength(1);
+    expect(names.filter((n) => n === "warn")).toHaveLength(1);
+    expect(names).not.toContain("ban");
     expect(names).toContain("rules");
+    expect((await t.fake.invoke("cmd", { name: "ban" }, MEMBER)).text).toContain("Hi @");
     expect((await t.fake.invoke("rules", {}, MEMBER)).text).toBe(`Hi @${MEMBER.user}, this is Fake room (2)`);
     expect((await t.fake.invoke("cmd", { name: "rules" }, MEMBER)).text).toContain("Hi @");
     expect((await t.fake.invoke("cmd", { name: "nothing" }, MEMBER)).text).toContain("not set up");

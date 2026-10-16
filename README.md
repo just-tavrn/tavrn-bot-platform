@@ -8,15 +8,20 @@ and extended, and it is small enough for that: one Node.js process, SQLite, a mo
 |---|---|
 | Welcome | welcome and goodbye messages with `{user}`, `{room}`, `{count}`, an optional DM, roles on join |
 | Auto-moderation | blocked words and patterns, links outside an allow-list, invite links, capitals, mention spam, floods, repeated messages, new accounts; per rule delete, warn, time out, kick or ban; exempt roles and channels; a log channel. It complements the node's own automod. |
-| Moderation | `/warn /warnings /timeout /kick /ban /unban /purge /slowmode` with a case log, a mod-log channel and a DM to the member; `/ban` and `/purge` ask for confirmation with buttons |
+| Moderation | a case log for tavrn's own kicks, bans, timeouts and purges (read from the room's audit log, so the client's `/kick` counts too), `/warn`, `/warnings` and `/case`, a mod-log channel, a DM to the member, and forms in the dashboard to time out, kick, ban and unban |
 | Levels | experience per message with a cooldown, level-up messages, roles at levels (stacked or replaced), `/rank`, `/leaderboard` with page buttons, an opt-in public leaderboard page |
 | Role menus | messages with buttons or a select menu where members pick roles (several or one), edited in the dashboard |
 | Custom commands | your own `/name` commands that answer with a text (placeholders, private answers, role limits) |
-| Polls | tavrn's own native polls: `/poll` opens a form and the bot creates the poll; a results summary when a timed poll closes |
+| Polls | tavrn's own native polls created from the dashboard, now or at a set time; a results summary when a timed poll closes; the results of the bot's polls and of polls it saw votes for |
 | Social alerts | RSS/Atom feeds, YouTube channels and Twitch streams posted to a channel, once per item |
 | Raid helper | raid events with sign-up by class and spec, automatic Tank / Healer / DPS groups with caps, bench, tentative, decline, leader tools, reminders; games are data (World of Warcraft and Final Fantasy XIV shipped, more in the dashboard) |
 | Starboard | messages with enough reactions of an emoji are reposted to a starboard channel |
 | Announcements | scheduled messages: once, daily or weekly in the room's time zone |
+
+The bot's commands: `/connect`, `/dashboard`, `/warn`, `/warnings`, `/case`, `/rank`, `/leaderboard`, `/raid`,
+`/raids`, `/cmd` and the room's custom commands. None of them repeats a command of the tavrn client (`/ban /kick
+/timeout /mute /unmute /purge /slowmode /poll /nick /topic /move /whiteboard /help /me /shrug`): for those the bot
+uses tavrn's own functions. A custom command with such a name is reached with `/cmd <name>` only.
 
 Screenshots follow.
 
@@ -26,8 +31,8 @@ Screenshots follow.
    with these **scopes** for its token: `messages:read`, `messages:write`, `members:read`, `moderation`,
    `rooms:manage`, `commands`, `dms`. Request these **permissions** (installers can clear any of them): View
    channels, Send messages, Read message history, Add reactions, Send polls, Manage messages, Kick members, Ban
-   members, Moderate members (timeouts), Purge, Manage roles (role menus, level and welcome roles), Manage channels
-   (`/slowmode`). Create a token and keep its secret.
+   members, Moderate members (timeouts), View audit log (the moderation cases of the client's own `/kick`, `/ban`,
+   `/timeout`, `/purge`), Manage roles (role menus, level and welcome roles). Create a token and keep its secret.
 2. **Run the container** with a volume for `/data` (database, the bot's key file and its encryption state):
 
    ```sh
@@ -143,7 +148,9 @@ the on/off switch; no UI code is needed. Handlers registered through `ctx` run o
 module is on. `ctx` also offers the database (`ctx.db`, plain SQL; add tables as a new entry at the end of the
 migrations in `server/db.ts`), a small key-value state per room (`ctx.state`), the room cache with roles and
 members (`ctx.cache`), `ctx.every(ms, fn)` for scheduled work, `ctx.addCase` for the moderation log and `onSave` to
-act when the settings change. Lists that need their own tables (the raid helper's events) are `collections`.
+act when the settings change. Lists that need their own tables (the raid helper's events) are `collections`; a
+collection without `list` is a form that runs an action (the moderation module's "Kick a member"). Do not announce a
+command the tavrn client already has (`CLIENT_COMMANDS` in `server/tavrn.ts`): the platform leaves such names out.
 
 ### Adding a game to the raid helper
 

@@ -53,6 +53,13 @@ const MIGRATIONS: string[] = [
      at INTEGER NOT NULL, PRIMARY KEY (event_id, user));
    CREATE TABLE raid_games (
      id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE, json TEXT NOT NULL);`,
+  // 2: polls created in the dashboard (scheduled ones wait without a message) and polls the bot saw votes for
+  `ALTER TABLE polls ADD COLUMN json TEXT NOT NULL DEFAULT '{}';
+   ALTER TABLE polls ADD COLUMN posts_at INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE polls ADD COLUMN own INTEGER NOT NULL DEFAULT 1;
+   ALTER TABLE polls ADD COLUMN tally TEXT NOT NULL DEFAULT '';
+   ALTER TABLE polls ADD COLUMN dirty INTEGER NOT NULL DEFAULT 0;
+   CREATE INDEX polls_message ON polls (conversation, message_id);`,
 ];
 
 export type Row = Record<string, SQLInputValue>;

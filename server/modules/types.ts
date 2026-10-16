@@ -26,7 +26,10 @@ export interface Room {
 export type Settings = Record<string, unknown> & { enabled: boolean };
 export type Item = Record<string, unknown> & { id: string | number };
 
-/** A list of records a module keeps in its own tables (raid events, games, cases), edited with the generic form. */
+/**
+ * A list of records a module keeps in its own tables (raid events, games, cases), edited with the generic form. Without
+ * `list` it is only a form (an action such as "kick a member"): `save` runs it and may return a `message` to show.
+ */
 export interface Collection {
   title: string;
   /** The form of one item; a function when the choices depend on the room (the raid helper's games). */
@@ -34,9 +37,11 @@ export interface Collection {
   /** Keys shown as columns of the list. */
   columns: string[];
   readonly?: boolean;
-  list(room: Room): Item[] | Promise<Item[]>;
+  /** Items can be added and deleted, not changed (posted polls). */
+  noEdit?: boolean;
+  list?(room: Room): Item[] | Promise<Item[]>;
   /** Creates (`id` absent) or updates an item; `actor` is the platform user's tavrn address in that room. */
-  save?(room: Room, item: Record<string, unknown>, id: string | null, actor: string): Promise<Item>;
+  save?(room: Room, item: Record<string, unknown>, id: string | null, actor: string): Promise<Item & { message?: string }>;
   remove?(room: Room, id: string): void | Promise<void>;
 }
 

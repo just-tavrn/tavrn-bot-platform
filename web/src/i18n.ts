@@ -26,6 +26,7 @@ const en = {
   resetDone: "Your password is set. You can log in now.",
   send: "Send",
   save: "Save",
+  apply: "Apply",
   saved: "Saved.",
   cancel: "Cancel",
   delete: "Delete",
@@ -76,7 +77,7 @@ const en = {
   enable: "Enable",
   notFound: "Page not found.",
   language: "Deutsch",
-  features: "Auto-moderation · moderation commands with cases · levels and leaderboards · welcome and goodbye · role menus · custom commands · native polls · social alerts · raid helper · starboard · announcements",
+  features: "Auto-moderation · moderation case log with warnings · levels and leaderboards · welcome and goodbye · role menus · custom commands · native polls · social alerts · raid helper · starboard · announcements",
   item: "Entry",
   none: "—",
 } as const;
@@ -106,6 +107,7 @@ const de: Record<Key, string> = {
   resetDone: "Dein Passwort ist gesetzt. Du kannst dich jetzt anmelden.",
   send: "Senden",
   save: "Speichern",
+  apply: "Ausführen",
   saved: "Gespeichert.",
   cancel: "Abbrechen",
   delete: "Löschen",
@@ -156,7 +158,7 @@ const de: Record<Key, string> = {
   enable: "Aktivieren",
   notFound: "Seite nicht gefunden.",
   language: "English",
-  features: "Auto-Moderation · Moderationsbefehle mit Fällen · Level und Ranglisten · Begrüßung und Abschied · Rollenmenüs · eigene Befehle · native Umfragen · Social-Benachrichtigungen · Raid-Helfer · Starboard · Ankündigungen",
+  features: "Auto-Moderation · Moderations-Fallprotokoll mit Verwarnungen · Level und Ranglisten · Begrüßung und Abschied · Rollenmenüs · eigene Befehle · native Umfragen · Social-Benachrichtigungen · Raid-Helfer · Starboard · Ankündigungen",
   item: "Eintrag",
   none: "—",
 };

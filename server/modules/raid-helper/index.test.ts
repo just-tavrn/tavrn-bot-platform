@@ -25,7 +25,7 @@ describe("raid helper", () => {
     expect(json).toContain("Molten Core");
     expect(json).toContain("raid:spec:1:1");
     expect(json).toContain("Paladin – Holy");
-    expect(await events.list(t.room)).toMatchObject([{ title: "Molten Core", signed: "0/3", status: "open", leader: OWNER.user }]);
+    expect(await events.list!(t.room)).toMatchObject([{ title: "Molten Core", signed: "0/3", status: "open", leader: OWNER.user }]);
   });
 
   it("signs up by spec into the role, benches when the role is full and reuses the spec", async () => {

@@ -6,7 +6,7 @@
  * those beyond the limit.
  */
 import type { Interaction } from "@tavrn/bot";
-import { Permission, can } from "../../tavrn";
+import { CLIENT_COMMANDS, Permission, can } from "../../tavrn";
 import { defineModule, type ModuleCtx, type Room, type Settings } from "../types";
 import { at, fill } from "../util";
 
@@ -73,6 +73,8 @@ export default defineModule<S>({
     }));
   },
   async onSave(_ctx, _room, s) {
-    return s.commands.filter((c) => !NAME.test(c.name)).map((c) => `"${c.name}" is not a valid command name: use a–z, 0–9, - and _.`);
+    return s.commands.flatMap((c) =>
+      !NAME.test(c.name) ? [`"${c.name}" is not a valid command name: use a–z, 0–9, - and _.`] : CLIENT_COMMANDS.has(c.name) ? [`/${c.name} is a command of the tavrn client itself: use /cmd ${c.name} or another name.`] : [],
+    );
   },
 });
