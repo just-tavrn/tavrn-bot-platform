@@ -11,6 +11,14 @@ updates:
       # Playwright stays on the version whose Chromium the other repositories' runners have cached.
       - dependency-name: "@playwright/test"
         update-types: ["version-update:semver-minor"]
+      # Majors that need their own migration (2026-10-16): TypeScript 7 (astro check and the stricter checker),
+      # Preact 11 (stricter JSX attribute types), @types/node follows the Node LTS the runner image uses.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: preact
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
@@ -20,3 +28,7 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # The Node image stays on the LTS line (Node 25 is a current, not an LTS release).
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
