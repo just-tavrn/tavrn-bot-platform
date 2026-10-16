@@ -38,7 +38,7 @@ Screenshots follow.
    ```sh
    docker run -d --name tavrn-bot -p 127.0.0.1:8787:8787 -v tavrn-bot:/data \
      -e BASE_URL=https://bot.example.org -e TAVRN_BOT_TOKEN=… -e SESSION_SECRET="$(openssl rand -hex 32)" \
-     -e SMTP_URL=smtps://user:password@mail.example.org:465 -e MAIL_FROM="tavrn bot <bot@example.org>" \
+     -e SMTP_HOST=mail.example.org -e SMTP_USER=bot@example.org -e SMTP_PASSWORD=secret -e MAIL_FROM="tavrn bot <bot@example.org>" \
      -e ADMIN_EMAILS=you@example.org -e TRUST_PROXY=1 ghcr.io/just-tavrn/tavrn-bot-platform:edge
    ```
 
@@ -66,7 +66,10 @@ federation).
 | `TAVRN_BOT_TOKEN` | – | the app token; without it the dashboard runs and the bot stays offline. Only read from the environment. |
 | `TAVRN_NODE` | the token's issuer (discovered) | only to reach the home node at another address than its discovery document says, e.g. an internal URL (`http://tavrn:8080`); a public node needs nothing here |
 | `SESSION_SECRET` | random per start (development) | at least 32 characters; required in production. Keys the hashes of sessions, mail links and codes. |
-| `SMTP_URL` | – | e.g. `smtps://user:password@mail.example.org:465`; without it the mails (with their links) are written to the log and the UI says so |
+| `SMTP_HOST` | – | the mail server; without it the mails (with their links) are written to the log and the UI says so |
+| `SMTP_PORT` | 465 (`tls`), else 587 | the port |
+| `SMTP_SECURITY` | `tls` on 465, else `starttls` | `tls` (TLS from the start, port 465), `starttls` (plain connection upgraded, port 587) or `none` (a local relay) |
+| `SMTP_USER`, `SMTP_PASSWORD` | – | the login, as plain text (no URL encoding); without a user the server is used without login |
 | `MAIL_FROM` | `tavrn bot <bot@localhost>` | sender of the mails |
 | `ADMIN_EMAILS` | – | comma-separated: these accounts see the operator page (rooms, users, bot status, disabling a room) |
 | `TRUST_PROXY` | – | `1`: take the client address from `X-Forwarded-For` (rate limits); only behind your own proxy |
