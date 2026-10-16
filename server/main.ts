@@ -40,7 +40,12 @@ if (!config.botToken && !fake) {
   platform.status.error = "TAVRN_BOT_TOKEN is not set";
   log.warn("TAVRN_BOT_TOKEN is not set: the dashboard runs, the bot stays offline");
 } else {
-  void platform.start();
+  // A bot that cannot start (node unreachable, token refused) leaves the dashboard up for a minute, then the process
+  // ends so the container's restart policy tries again with a fresh runtime.
+  platform.start().catch((e: unknown) => {
+    log.error("the bot could not start; restarting in a minute", { error: e });
+    setTimeout(() => void stop("restart").then(() => process.exit(1)), 60_000).unref();
+  });
 }
 
 let stopping = false;
@@ -51,7 +56,7 @@ const stop = async (signal: string) => {
   server.close();
   await platform.stop();
   db.close();
-  process.exit(0);
+  if (signal !== "restart") process.exit(0);
 };
 process.on("SIGTERM", () => void stop("SIGTERM"));
 process.on("SIGINT", () => void stop("SIGINT"));

@@ -40,7 +40,6 @@ export class Platform {
   private readonly timers: NodeJS.Timeout[] = [];
   private announceTimer: NodeJS.Timeout | null = null;
   private announced = "";
-  private stopped = false;
 
   constructor(
     readonly config: Config,
@@ -280,20 +279,19 @@ export class Platform {
     await this.connectBot();
   }
 
+  /** Starts the bot; a failed start rejects (a stopped runtime cannot start again: main.ts restarts the process). */
   private async connectBot(): Promise<void> {
     try {
       await this.bot.start();
       Object.assign(this.status, { online: true, error: null, address: this.bot.info.address });
-      await this.announce();
+      await this.announce().catch((e: unknown) => this.log.warn("commands could not be announced", { error: e }));
     } catch (e) {
       Object.assign(this.status, { online: false, error: e instanceof Error ? e.message : String(e) });
-      this.log.error("the bot could not start, retrying in a minute", { error: e });
-      if (!this.stopped) setTimeout(() => void this.connectBot(), 60_000).unref?.();
+      throw e;
     }
   }
 
   async stop(): Promise<void> {
-    this.stopped = true;
     for (const t of this.timers) clearInterval(t);
     if (this.announceTimer) clearTimeout(this.announceTimer);
     if (this.status.online) await this.bot.stop().catch(() => undefined);
