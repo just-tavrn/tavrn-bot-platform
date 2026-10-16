@@ -70,7 +70,7 @@ export function roomRoutes({ config, db, platform }: Deps): Hono<Env> {
         description: m.description,
         schema: [ENABLED_FIELD, ...m.schema],
         settings: platform.settings(room, m),
-        collections: Object.entries(platform.collections(m.id)).map(([key, col]) => ({ key, title: col.title, fields: typeof col.fields === "function" ? col.fields(room) : col.fields, columns: col.columns, readonly: !!col.readonly })),
+        collections: Object.entries(platform.collections(m.id)).map(([key, col]) => ({ key, title: col.title, fields: typeof col.fields === "function" ? col.fields(room) : col.fields, columns: col.columns, readonly: !!col.readonly, noEdit: !!col.noEdit, form: !col.list })),
       })),
     });
   });
@@ -95,13 +95,15 @@ export function roomRoutes({ config, db, platform }: Deps): Hono<Env> {
 
   r.get("/rooms/:id/modules/:mod/:col", async (c) => {
     const { room } = await managed(c);
-    return c.json(await collectionOf(c).list(room));
+    const col = collectionOf(c);
+    if (!col.list) throw new HttpError(404, "collection_not_found", "Unknown list");
+    return c.json(await col.list(room));
   });
 
   const save = async (c: Context<Env>, id: string | null) => {
     const { room, address } = await managed(c);
     const col = collectionOf(c);
-    if (col.readonly || !col.save) throw new HttpError(403, "readonly", "This list cannot be edited");
+    if (col.readonly || !col.save || (id && (col.noEdit || !col.list))) throw new HttpError(403, "readonly", "This list cannot be edited");
     const item = clean(typeof col.fields === "function" ? col.fields(room) : col.fields, await c.req.json(), {}, await platform.choices(room));
     return c.json(await col.save(room, item, id, address));
   };

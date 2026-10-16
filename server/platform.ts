@@ -10,7 +10,7 @@ import type { Config } from "./config";
 import type { Db } from "./db";
 import type { Collection, Module, ModuleCtx, Room, Settings } from "./modules/types";
 import { clean, type Field, type RoomChoices } from "./schema";
-import { Permission, RoomCache, can, qualify, split, type BotPort } from "./tavrn";
+import { CLIENT_COMMANDS, Permission, RoomCache, can, qualify, split, type BotPort } from "./tavrn";
 
 interface RoomRow {
   id: number;
@@ -231,15 +231,19 @@ export class Platform {
 
   // ---- Commands ----------------------------------------------------------------------------------
 
-  /** All definitions: core, modules, then the dynamic ones that do not collide (at most 100, APPLICATIONS.md §5.1). */
+  /**
+   * All definitions: core, modules, then the dynamic ones that do not collide (at most 100, APPLICATIONS.md §5.1);
+   * never a name of the client's own commands.
+   */
   commandSet(): CommandDefinition[] {
     const out = new Map<string, CommandDefinition>();
-    for (const d of [...CORE_COMMANDS, ...this.modules.flatMap((m) => m.commands ?? [])]) if (!out.has(d.name)) out.set(d.name, d);
+    const free = (name: string) => !out.has(name) && !CLIENT_COMMANDS.has(name);
+    for (const d of [...CORE_COMMANDS, ...this.modules.flatMap((m) => m.commands ?? [])]) if (free(d.name)) out.set(d.name, d);
     for (const m of this.modules) {
       if (!m.dynamicCommands) continue;
       const ctx = this.ctxs.get(m.id)!;
       for (const { definition, handler } of m.dynamicCommands(ctx)) {
-        if (out.has(definition.name) || out.size >= MAX_COMMANDS) continue;
+        if (!free(definition.name) || out.size >= MAX_COMMANDS) continue;
         out.set(definition.name, definition);
         ctx.command(definition.name, handler);
       }

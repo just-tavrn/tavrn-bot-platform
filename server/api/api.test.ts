@@ -139,14 +139,20 @@ describe("rooms", () => {
     expect((await s.call("GET", `/api/public/leaderboard/${id}`)).status).toBe(404);
   });
 
-  it("drops a manager who lost Manage room in tavrn", async () => {
+  it("drops a manager who lost Manage room in tavrn, also for member actions", async () => {
     const s = server();
     await s.account();
     const { json: code } = await s.call("POST", "/api/rooms/connect-code");
     await s.call("POST", "/api/test/connect", { code: code.code });
     const id = (await s.call("GET", "/api/rooms")).json[0].id;
+    await s.call("PUT", `/api/rooms/${id}/modules/moderation`, { enabled: true, logChannel: "", dmOnAction: false });
+    expect((await s.call("GET", `/api/rooms/${id}/modules/moderation/kick`)).status).toBe(404);
+    expect((await s.call("POST", `/api/rooms/${id}/modules/moderation/kick`, { member: "member@fake.example", reason: "spam" })).json).toMatchObject({ message: "Done: kick member@fake.example (case #1)." });
+    expect((await s.call("PUT", `/api/rooms/${id}/modules/moderation/kick/1`, { member: "member@fake.example", reason: "" })).status).toBe(403);
     s.db.run("UPDATE room_managers SET address = 'member@fake.example'");
-    expect((await s.call("GET", `/api/rooms/${id}`)).status).toBe(403);
+    expect((await s.call("POST", `/api/rooms/${id}/modules/moderation/ban`, { member: "owner@fake.example", reason: "" })).status).toBe(403);
+    expect(s.fake.calls.map((c) => c.name)).toEqual(["kick"]);
+    expect((await s.call("GET", `/api/rooms/${id}`)).status).toBe(404);
     expect((await s.call("GET", "/api/rooms")).json).toEqual([]);
   });
 });

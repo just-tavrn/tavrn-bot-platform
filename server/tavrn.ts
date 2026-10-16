@@ -9,8 +9,15 @@ import { Permission, hasPermission, parsePermissions, roomLevelPermissions, type
 
 export type BotPort = Pick<
   Bot,
-  "on" | "command" | "component" | "modal" | "setCommands" | "send" | "createPoll" | "votes" | "edit" | "deleteMessage" | "messages" | "room" | "members" | "timeout" | "kick" | "ban" | "unban" | "dm" | "api" | "start" | "stop" | "info"
+  "on" | "command" | "component" | "modal" | "setCommands" | "send" | "createPoll" | "votes" | "edit" | "deleteMessage" | "messages" | "room" | "members" | "timeout" | "kick" | "ban" | "unban" | "auditLog" | "dm" | "api" | "start" | "stop" | "info"
 >;
+
+/**
+ * The web client's own slash commands: the platform announces none of these names (an application's command of the
+ * same name would only stand next to the built-in one, APPLICATIONS.md §5.4). Moderation and polls use tavrn's own
+ * functions instead: the client's `/kick` lands in the room's audit log, which the moderation module reads.
+ */
+export const CLIENT_COMMANDS = new Set(["ban", "kick", "timeout", "mute", "unmute", "purge", "slowmode", "poll", "nick", "topic", "move", "whiteboard", "help", "me", "shrug"]);
 
 /** `<node>/<id>` of a room, a channel (= its conversation) or anything else the node names by id. */
 export const qualify = (node: string, id: string) => `${node}/${id}`;

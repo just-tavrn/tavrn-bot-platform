@@ -156,7 +156,12 @@ export class FakeBot {
     return { id };
   }
   async votes() {
-    return { tally: this.tally };
+    return { tally: this.tally, poll: { question: "Pizza?" }, closesAt: null };
+  }
+  /** The room's audit log, newest first (tests set it). */
+  audit: { id: string; action: string; actor_id: string | null; target: string; reason: string; meta: Record<string, unknown>; created_at: string }[] = [];
+  async auditLog(_room: string, q: { limit?: number } = {}) {
+    return this.audit.slice(0, q.limit ?? 50);
   }
   async edit(conversation: string, id: string, content: unknown) {
     this.edits.push({ conversation, id, content });

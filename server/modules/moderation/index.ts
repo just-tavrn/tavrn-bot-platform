@@ -1,193 +1,229 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Moderation commands with a case log: /warn /warnings /timeout /kick /ban /unban /purge /slowmode. Every command
- * checks the invoker's permission in the channel and the role hierarchy itself (the palette's filter is only a
- * convenience); /ban and /purge ask for confirmation with buttons that only the invoker may press.
+ * Moderation with a case log. Kicks, bans, timeouts and purges are tavrn's own (the client's `/kick`, `/ban`, …): the
+ * module reads the room's audit log every minute and turns them into cases with the mod-log line and the DM to the
+ * member. It adds what tavrn has not: `/warn`, `/warnings` and `/case`, and the dashboard's forms to time out, kick,
+ * ban and unban, which check the platform user's own permissions and rank in tavrn first.
  */
-import { randomBytes } from "node:crypto";
-import { button, row, withComponents, type Interaction } from "@tavrn/bot";
+import type { AuditEntry } from "@tavrn/sdk";
 import { Permission, can } from "../../tavrn";
-import { defineModule, type Room, type Settings } from "../types";
+import { ValidationError, type Field } from "../../schema";
+import { defineModule, type Collection, type ModuleCtx, type Room, type Settings } from "../types";
 import { at, post } from "../util";
 
 interface S extends Settings {
   logChannel: string;
   dmOnAction: boolean;
-  confirmBan: boolean;
 }
 
 const user = { name: "user", description: "The member (address)", type: "user", required: true } as const;
-const reason = { name: "reason", description: "Reason", type: "string", required: false, max_length: 500 } as const;
 const perm = (bit: bigint) => String(bit);
 const MAX_REASON = 500;
+const AUDIT_PAGE = 100;
+const ADDRESS = /^[^@\s]+@[^@\s]+$/;
+/** `@alice@node` for an address, anything else (a domain, "member in #channel") as it is. */
+const handle = (x: string) => (ADDRESS.test(x) ? at(x) : x);
 
-interface Pending {
-  run: () => Promise<string>;
-  invoker: string;
-  expires: number;
+/** A case read from an audit entry; `authorId` and `channels` only for purges. */
+export interface AuditCase {
+  action: string;
+  target: string;
+  actorId: string;
+  reason: string;
+  authorId: string | null;
+  channels: string[];
+  /** The DM to the member, or null. */
+  tell: string | null;
 }
+
+/** The node's audit entries that are moderation cases (kick, ban, unban, timeout, purge); null for the others. */
+export function auditCase(e: AuditEntry): AuditCase | null {
+  const meta = e.meta ?? {};
+  const base = { target: e.target.toLowerCase(), actorId: e.actor_id ?? "", reason: (e.reason ?? "").slice(0, MAX_REASON), authorId: null, channels: [] as string[] };
+  const minutes = Number(meta.minutes) || 0;
+  switch (e.action) {
+    case "member.kick":
+      return { ...base, action: "kick", tell: "You were removed" };
+    case "member.ban":
+      return { ...base, action: "ban", tell: ADDRESS.test(base.target) ? "You were banned" : null };
+    case "member.unban":
+      return { ...base, action: "unban", tell: null };
+    case "member.timeout":
+      return { ...base, action: `timeout ${minutes} min`, tell: `You were timed out for ${minutes} minutes` };
+    case "member.timeout_clear":
+      return { ...base, action: "timeout lifted", tell: null };
+    case "moderation.purge": {
+      const channels = Array.isArray(meta.channels) ? meta.channels.filter((c): c is string => typeof c === "string") : [];
+      return { ...base, action: `purge ${Number(meta.deleted) || 0}`, target: "", authorId: typeof meta.author_id === "string" ? meta.author_id : null, channels, tell: null };
+    }
+    default:
+      return null;
+  }
+}
+
+const member: Field = { key: "member", type: "string", label: "Member", help: "The address, e.g. alice@node.example", max: 200, required: true };
+const reasonField: Field = { key: "reason", type: "string", label: "Reason", max: MAX_REASON };
+type Kind = "timeout" | "kick" | "ban" | "unban";
+const BITS: Record<Kind, bigint> = { timeout: Permission.MODERATE_MEMBERS, kick: Permission.KICK_MEMBERS, ban: Permission.BAN_MEMBERS, unban: Permission.BAN_MEMBERS };
 
 export default defineModule<S>({
   id: "moderation",
   title: "Moderation",
-  description: "Commands for moderators with a case log and a mod-log channel.",
-  defaults: { logChannel: "", dmOnAction: true, confirmBan: true },
+  description: "A case log for tavrn's own kicks, bans, timeouts and purges, warnings, and member actions on the web.",
+  defaults: { logChannel: "", dmOnAction: true },
   schema: [
-    { key: "logChannel", type: "channel", label: "Mod-log channel", help: "Every case is posted here." },
+    { key: "logChannel", type: "channel", label: "Mod-log channel", help: "Every case is posted here, also those of the client's own /kick, /ban, /timeout and /purge (the bot needs View audit log)." },
     { key: "dmOnAction", type: "boolean", label: "Tell the member by direct message" },
-    { key: "confirmBan", type: "boolean", label: "Ask before banning" },
   ],
   commands: [
-    { name: "warn", description: "Warn a member", args: [user, { ...reason, required: true }], default_permissions: perm(Permission.MODERATE_MEMBERS), dm_allowed: false },
+    { name: "warn", description: "Warn a member", args: [user, { name: "reason", description: "Reason", type: "string", required: true, max_length: MAX_REASON }], default_permissions: perm(Permission.MODERATE_MEMBERS), dm_allowed: false },
     { name: "warnings", description: "List the cases of a member", args: [user], default_permissions: perm(Permission.MODERATE_MEMBERS), dm_allowed: false },
-    { name: "timeout", description: "Time a member out", args: [user, { name: "minutes", description: "Minutes (0 lifts it)", type: "integer", required: true, min: 0, max: 40320 }, reason], default_permissions: perm(Permission.MODERATE_MEMBERS), dm_allowed: false },
-    { name: "kick", description: "Remove a member from the room", args: [user, reason], default_permissions: perm(Permission.KICK_MEMBERS), dm_allowed: false },
-    { name: "ban", description: "Ban a member", args: [user, reason], default_permissions: perm(Permission.BAN_MEMBERS), dm_allowed: false },
-    { name: "unban", description: "Lift a ban", args: [user], default_permissions: perm(Permission.BAN_MEMBERS), dm_allowed: false },
-    { name: "purge", description: "Delete the latest messages of this channel", args: [{ name: "count", description: "How many (1–100)", type: "integer", required: true, min: 1, max: 100 }, { ...user, required: false, description: "Only messages of this member" }], default_permissions: perm(Permission.PURGE), dm_allowed: false },
-    { name: "slowmode", description: "Set the slowmode of a channel", args: [{ name: "seconds", description: "Seconds between messages (0 = off)", type: "integer", required: true, min: 0, max: 21600 }, { name: "channel", description: "Channel (default: this one)", type: "channel", required: false }], default_permissions: perm(Permission.MANAGE_CHANNELS), dm_allowed: false },
+    { name: "case", description: "Show one moderation case", args: [{ name: "id", description: "The case number", type: "integer", required: true, min: 1 }], default_permissions: perm(Permission.MODERATE_MEMBERS), dm_allowed: false },
   ],
-  collections: (ctx) => ({
-    cases: {
-      title: "Cases",
-      readonly: true,
-      fields: [],
-      columns: ["id", "created", "action", "target", "moderator", "reason"],
-      list: (room) =>
-        ctx.db.all<{ id: number; created_at: number }>("SELECT id, action, target, moderator, reason, created_at FROM cases WHERE room_id = ? ORDER BY id DESC LIMIT 500", room.id).map(({ created_at, ...c }) => ({ ...c, created: new Date(created_at).toISOString().slice(0, 16).replace("T", " ") })),
-    },
-  }),
+  collections: (ctx) => {
+    const form = (kind: Kind, title: string, fields: Field[]): Collection => ({ title, fields, columns: [], save: async (room, item, _id, actor) => ({ id: 0, message: await act(ctx, room, kind, actor, item) }) });
+    return {
+      cases: {
+        title: "Cases",
+        readonly: true,
+        fields: [],
+        columns: ["id", "created", "action", "target", "moderator", "reason"],
+        list: (room) =>
+          ctx.db.all<{ id: number; created_at: number }>("SELECT id, action, target, moderator, reason, created_at FROM cases WHERE room_id = ? ORDER BY id DESC LIMIT 500", room.id).map(({ created_at, ...c }) => ({ ...c, created: new Date(created_at).toISOString().slice(0, 16).replace("T", " ") })),
+      },
+      timeout: form("timeout", "Time out a member", [member, { key: "minutes", type: "number", label: "Minutes (0 lifts the timeout)", min: 0, max: 40320 }, reasonField]),
+      kick: form("kick", "Kick a member", [member, reasonField]),
+      ban: form("ban", "Ban a member", [member, reasonField]),
+      unban: form("unban", "Lift a ban", [member]),
+    };
+  },
   register(ctx) {
-    const pending = new Map<string, Pending>();
-    const text = (v: unknown) => String(v ?? "").slice(0, MAX_REASON).trim();
     const address = (v: unknown) => String(v ?? "").trim().toLowerCase().replace(/^@/, "");
 
-    /** The permission check of every command; null when allowed, else the refusal was sent. */
-    const allowed = (i: Interaction, bit: bigint) => (can(i.permissions, bit) ? null : i.ephemeral("You do not have the permission for this."));
-
-    /** The target as a member below the invoker (kick, timeout, warn), or the refusal. */
-    const target = async (i: Interaction, room: Room, needMember: boolean) => {
-      const a = address(i.args.user);
-      if (!a || a === i.user.toLowerCase()) return { refusal: "Choose another member." };
-      const m = await ctx.cache.memberByAddress(room.ref, a);
-      if (!m) return needMember ? { refusal: `${a} is not a member of this room.` } : { address: a, id: null };
-      if (m.address === ctx.bot.info.address.toLowerCase()) return { refusal: "I will not act on myself." };
-      if (!(await ctx.cache.outranks(room.ref, i.userId, m.id))) return { refusal: "You can only act on members below your highest role." };
-      return { address: a, id: m.id };
-    };
-
-    const record = async (room: Room, s: S, action: string, who: string, by: string, why: string) => {
-      const n = ctx.addCase(room, action, who, by, why);
-      await post(ctx, room, s.logChannel, `🔨 Case #${n}: ${action} ${at(who)} by ${at(by)}${why ? ` (${why})` : ""}`);
-      return n;
-    };
-    const tell = (s: S, room: Room, who: string, what: string, why: string) =>
-      s.dmOnAction ? ctx.bot.dm(who, `${what} in ${room.name}${why ? `: ${why}` : "."}`).catch((e: unknown) => ctx.log.warn("moderation DM failed", { error: e })) : undefined;
-
-    const confirm = (i: Interaction, question: string, run: () => Promise<string>) => {
-      const token = randomBytes(9).toString("base64url");
-      pending.set(token, { run, invoker: i.user, expires: Date.now() + 120_000 });
-      return i.reply(withComponents(question, row(button({ label: "Confirm", style: "danger", customId: `mod:yes:${token}` }), button({ label: "Cancel", customId: `mod:no:${token}` }))));
-    };
-    ctx.every(60_000, () => {
-      for (const [k, p] of pending) if (p.expires < Date.now()) pending.delete(k);
-    });
-    ctx.component(/^mod:(yes|no):[\w-]{12}$/, async (i) => {
-      const [, answer, token] = (i.customId ?? "").split(":");
-      const p = pending.get(token!);
-      if (!p || p.expires < Date.now()) return i.update("This confirmation expired.");
-      if (p.invoker !== i.user) return i.ephemeral("Only the moderator who asked can confirm this.");
-      pending.delete(token!);
-      return i.update(answer === "yes" ? await p.run() : "Cancelled.");
-    });
-
     ctx.command("warn", async (i, room, s) => {
-      if (allowed(i, Permission.MODERATE_MEMBERS)) return;
-      const t = await target(i, room, true);
-      if ("refusal" in t) return i.ephemeral(t.refusal!);
-      const why = text(i.args.reason);
-      await tell(s, room, t.address, "You were warned", why);
-      const n = await record(room, s, "warn", t.address, i.user, why);
-      return i.reply(`⚠️ ${at(t.address)} was warned (case #${n}): ${why}`, { mentions: [t.address] });
+      if (!can(i.permissions, Permission.MODERATE_MEMBERS)) return i.ephemeral("You do not have the permission for this.");
+      const a = address(i.args.user);
+      if (!a || a === i.user.toLowerCase()) return i.ephemeral("Choose another member.");
+      const m = await ctx.cache.memberByAddress(room.ref, a);
+      if (!m) return i.ephemeral(`${a} is not a member of this room.`);
+      if (!(await ctx.cache.outranks(room.ref, i.userId, m.id))) return i.ephemeral("You can only act on members below your highest role.");
+      const why = String(i.args.reason ?? "").slice(0, MAX_REASON).trim();
+      const n = await record(ctx, room, s, { action: "warn", target: a, by: i.user, reason: why, tell: "You were warned" });
+      return i.reply(`⚠️ ${at(a)} was warned (case #${n}): ${why}`, { mentions: [a] });
     });
 
     ctx.command("warnings", async (i, room) => {
-      if (allowed(i, Permission.MODERATE_MEMBERS)) return;
+      if (!can(i.permissions, Permission.MODERATE_MEMBERS)) return i.ephemeral("You do not have the permission for this.");
       const a = address(i.args.user);
-      const rows = ctx.db.all<{ id: number; action: string; reason: string; created_at: number }>("SELECT id, action, reason, created_at FROM cases WHERE room_id = ? AND target = ? ORDER BY id DESC LIMIT 15", room.id, a);
+      const rows = ctx.db.all<CaseRow>("SELECT * FROM cases WHERE room_id = ? AND target = ? ORDER BY id DESC LIMIT 15", room.id, a);
       if (!rows.length) return i.ephemeral(`${a} has no cases.`);
       return i.ephemeral([`Cases of ${a}:`, ...rows.map((r) => `#${r.id} ${new Date(r.created_at).toISOString().slice(0, 10)} ${r.action}${r.reason ? `: ${r.reason}` : ""}`)].join("\n"));
     });
 
-    ctx.command("timeout", async (i, room, s) => {
-      if (allowed(i, Permission.MODERATE_MEMBERS)) return;
-      const t = await target(i, room, true);
-      if ("refusal" in t) return i.ephemeral(t.refusal!);
-      const minutes = Math.max(0, Math.min(40320, Math.floor(Number(i.args.minutes) || 0)));
-      const why = text(i.args.reason);
-      await ctx.bot.timeout(room.ref, t.id!, minutes, { reason: why || undefined });
-      if (minutes) await tell(s, room, t.address, `You were timed out for ${minutes} minutes`, why);
-      const n = await record(room, s, minutes ? `timeout ${minutes} min` : "timeout lifted", t.address, i.user, why);
-      return i.reply(minutes ? `⏳ ${at(t.address)} is timed out for ${minutes} minutes (case #${n}).` : `${at(t.address)} may write again (case #${n}).`);
+    ctx.command("case", async (i, room) => {
+      if (!can(i.permissions, Permission.MODERATE_MEMBERS)) return i.ephemeral("You do not have the permission for this.");
+      const c = ctx.db.get<CaseRow>("SELECT * FROM cases WHERE room_id = ? AND id = ?", room.id, Math.floor(Number(i.args.id) || 0));
+      if (!c) return i.ephemeral("There is no such case in this room.");
+      return i.ephemeral(`Case #${c.id} · ${new Date(c.created_at).toISOString().slice(0, 16).replace("T", " ")} UTC\n${c.action} ${c.target ? at(c.target) : ""} by ${c.moderator}${c.reason ? `\nReason: ${c.reason}` : ""}`);
     });
 
-    ctx.command("kick", async (i, room, s) => {
-      if (allowed(i, Permission.KICK_MEMBERS)) return;
-      const t = await target(i, room, true);
-      if ("refusal" in t) return i.ephemeral(t.refusal!);
-      const why = text(i.args.reason);
-      await tell(s, room, t.address, "You were removed", why);
-      await ctx.bot.kick(room.ref, t.id!, { reason: why || undefined });
-      const n = await record(room, s, "kick", t.address, i.user, why);
-      return i.reply(`👢 ${at(t.address)} was removed (case #${n}).`);
+    const quiet = new Set<number>();
+    ctx.every(60_000, async () => {
+      for (const room of ctx.enabledRooms()) {
+        try {
+          await syncAudit(ctx, room);
+          quiet.delete(room.id);
+        } catch (e) {
+          // Logged once per room: a room that did not grant View audit log would fill the log every minute.
+          if (!quiet.has(room.id)) ctx.log.warn("audit log could not be read", { room: room.ref, error: e });
+          quiet.add(room.id);
+        }
+      }
     });
-
-    ctx.command("ban", async (i, room, s) => {
-      if (allowed(i, Permission.BAN_MEMBERS)) return;
-      const t = await target(i, room, false);
-      if ("refusal" in t) return i.ephemeral(t.refusal!);
-      const why = text(i.args.reason);
-      const run = async () => {
-        await tell(s, room, t.address, "You were banned", why);
-        await ctx.bot.ban(room.ref, t.address, { reason: why || undefined });
-        return `🔨 ${at(t.address)} was banned (case #${await record(room, s, "ban", t.address, i.user, why)}).`;
-      };
-      return s.confirmBan ? confirm(i, `Ban ${at(t.address)}${why ? ` (${why})` : ""}?`, run) : i.reply(await run());
-    });
-
-    ctx.command("unban", async (i, room, s) => {
-      if (allowed(i, Permission.BAN_MEMBERS)) return;
-      const a = address(i.args.user);
-      await ctx.bot.unban(room.ref, a);
-      return i.reply(`${at(a)} is no longer banned (case #${await record(room, s, "unban", a, i.user, "")}).`);
-    });
-
-    ctx.command("purge", async (i, room, s) => {
-      if (allowed(i, Permission.PURGE) || !i.channelId) return;
-      const count = Math.max(1, Math.min(100, Math.floor(Number(i.args.count) || 1)));
-      const only = i.args.user ? await ctx.cache.memberByAddress(room.ref, address(i.args.user)) : null;
-      if (i.args.user && !only) return i.ephemeral("That member is not in this room.");
-      const recent = (await ctx.bot.messages(i.conversation, { limit: 100 })).filter((m) => !only || m.authorId === only.id).slice(0, count);
-      if (!recent.length) return i.ephemeral("There is nothing to delete.");
-      const from = recent.map((m) => m.createdAt).sort()[0]!;
-      const api = ctx.bot.api(room.node).rooms;
-      const req = { channel_ids: [i.channelId], from, to: new Date().toISOString(), author_id: only?.id ?? null };
-      const preview = await api.purge(room.roomId, req);
-      if (!preview.messages || !preview.confirm_token) return i.ephemeral("There is nothing to delete.");
-      return confirm(i, `Delete ${preview.messages} messages${only ? ` of ${at(only.address)}` : ""}?`, async () => {
-        const done = await api.purge(room.roomId, { ...req, confirm_token: preview.confirm_token });
-        await record(room, s, `purge ${done.messages}`, only?.address ?? `#${i.channelId}`, i.user, "");
-        return `🧹 Deleted ${done.messages} messages.`;
-      });
-    });
-
-    ctx.command("slowmode", async (i, room) => {
-      if (allowed(i, Permission.MANAGE_CHANNELS)) return;
-      const channel = String(i.args.channel ?? i.channelId ?? "");
-      const seconds = Math.max(0, Math.min(21600, Math.floor(Number(i.args.seconds) || 0)));
-      await ctx.bot.api(room.node).channels.update(room.roomId, channel, { slowmode_secs: seconds });
-      return i.ephemeral(seconds ? `Slowmode: one message per ${seconds} seconds.` : "Slowmode is off.");
-    });
+  },
+  async onSave(ctx, room, s, previous) {
+    // Switched on (again): the audit log counts from now, older entries do not become cases.
+    if (s.enabled && !previous.enabled) ctx.state.del(room, "audit");
+    return [];
   },
 });
 
+interface CaseRow {
+  id: number;
+  action: string;
+  target: string;
+  moderator: string;
+  reason: string;
+  created_at: number;
+}
+
+/** Records a case, tells the member (if the room wants it) and posts the mod-log line; returns the case number. */
+async function record(ctx: ModuleCtx<S>, room: Room, s: S, c: { action: string; target: string; by: string; reason: string; tell: string | null }): Promise<number> {
+  if (c.tell && s.dmOnAction && ADDRESS.test(c.target)) {
+    await ctx.bot.dm(c.target, `${c.tell} in ${room.name}${c.reason ? `: ${c.reason}` : "."}`).catch((e: unknown) => ctx.log.warn("moderation DM failed", { error: e }));
+  }
+  const n = ctx.addCase(room, c.action, c.target, c.by, c.reason);
+  await post(ctx, room, s.logChannel, `🔨 Case #${n}: ${c.action} ${handle(c.target)} by ${handle(c.by)}${c.reason ? ` (${c.reason})` : ""}`);
+  return n;
+}
+
+/**
+ * Reads the room's audit log since the last seen entry (one request of up to 100 entries) and records its moderation
+ * entries as cases. Entries of the bot itself are skipped: the bot recorded those cases when it acted.
+ */
+export async function syncAudit(ctx: ModuleCtx<S>, room: Room): Promise<void> {
+  const last = ctx.state.get(room, "audit");
+  const entries = await ctx.bot.auditLog(room.ref, { limit: AUDIT_PAGE });
+  if (!entries.length) return;
+  ctx.state.set(room, "audit", entries[0]!.id);
+  if (last === null) return;
+  const s = ctx.settings(room);
+  const self = new Set([ctx.bot.info.userId, (await ctx.cache.memberByAddress(room.ref, ctx.bot.info.address).catch(() => null))?.id]);
+  const name = async (id: string) => (await ctx.cache.member(room.ref, id).catch(() => null))?.address ?? id;
+  for (const e of entries.filter((x) => x.id > last).reverse()) {
+    const c = auditCase(e);
+    if (!c || self.has(c.actorId)) continue;
+    let target = c.target;
+    if (c.action.startsWith("purge")) {
+      const channels = await ctx.cache.channels(room.ref).catch(() => []);
+      const where = c.channels.length ? c.channels.map((id) => `#${channels.find((ch) => ch.id === id)?.name ?? id}`).join(" ") : "all channels";
+      target = c.authorId ? `${await name(c.authorId)} in ${where}` : where;
+    }
+    await record(ctx, room, s, { action: c.action, target, by: c.actorId ? await name(c.actorId) : "tavrn", reason: c.reason, tell: c.tell });
+  }
+}
+
+/**
+ * A member action from the dashboard. The platform user (`actor`: their address in the room) must still hold the
+ * permission in tavrn and rank above the member; the node checks the bot's own permission and rank again.
+ */
+async function act(ctx: ModuleCtx<S>, room: Room, kind: Kind, actor: string, item: Record<string, unknown>): Promise<string> {
+  const refuse = (m: string): never => {
+    throw new ValidationError("member", m);
+  };
+  const a = String(item.member ?? "").trim().toLowerCase().replace(/^@/, "");
+  if (!ADDRESS.test(a)) refuse("give the member's address (alice@node.example)");
+  const me = await ctx.cache.memberByAddress(room.ref, actor).catch(() => null);
+  if (!me || !can(await ctx.cache.permissions(room.ref, me.id), BITS[kind])) refuse(`you may not ${kind} members in this room`);
+  if (a === actor) refuse("choose another member");
+  const m = await ctx.cache.memberByAddress(room.ref, a).catch(() => null);
+  if (!m && (kind === "timeout" || kind === "kick")) refuse(`${a} is not a member of this room`);
+  if (m && m.address === ctx.bot.info.address.toLowerCase()) refuse("the bot will not act on itself");
+  if (m && kind !== "unban" && !(await ctx.cache.outranks(room.ref, me!.id, m.id))) refuse("you can only act on members below your highest role");
+
+  const s = ctx.settings(room);
+  const why = String(item.reason ?? "").slice(0, MAX_REASON).trim();
+  const opts = { reason: why || undefined };
+  const minutes = Math.max(0, Math.min(40320, Math.floor(Number(item.minutes) || 0)));
+  const tavrn = (p: Promise<unknown>) => p.catch((e: unknown) => refuse(`tavrn refused: ${e instanceof Error ? e.message : String(e)}`));
+  const tell = { timeout: minutes ? `You were timed out for ${minutes} minutes` : null, kick: "You were removed", ban: "You were banned", unban: null }[kind];
+  // The member hears of a kick or ban before it happens: afterwards the bot may not reach them any more.
+  if (tell && s.dmOnAction && kind !== "timeout") await ctx.bot.dm(a, `${tell} in ${room.name}${why ? `: ${why}` : "."}`).catch(() => undefined);
+  if (kind === "timeout") await tavrn(ctx.bot.timeout(room.ref, m!.id, minutes, opts));
+  if (kind === "kick") await tavrn(ctx.bot.kick(room.ref, m!.id, opts));
+  if (kind === "ban") await tavrn(ctx.bot.ban(room.ref, a, opts));
+  if (kind === "unban") await tavrn(ctx.bot.unban(room.ref, a));
+  const action = kind === "timeout" ? (minutes ? `timeout ${minutes} min` : "timeout lifted") : kind;
+  const n = await record(ctx, room, s, { action, target: a, by: actor, reason: why, tell: kind === "timeout" ? tell : null });
+  return `Done: ${action} ${a} (case #${n}).`;
+}
