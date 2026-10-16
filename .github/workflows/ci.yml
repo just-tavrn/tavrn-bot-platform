@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The fast checks only (the organization's reusable workflows): install, SPDX and license checks, typecheck, Vitest,
+# the web build. The Playwright spec runs locally (README.md, "Development"), never here. Every job is gated by the
+# repository variable CI_ENABLED (docs/GITHUB.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js:
+    name: JavaScript
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    uses: just-tavrn/.github/.github/workflows/js-ci.yml@main
+    with:
+      typecheck: pnpm typecheck
+      test: pnpm test
+      build: pnpm build
+      submodules: "false"
+      timeout-minutes: 15
+
+  publish-check:
+    name: Publication hygiene
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: No private files, domains or secrets
+        env:
+          # Comma-separated private domains, hosts and addresses (repository or organization secret).
+          PUBLISH_CHECK_PRIVATE: ${{ secrets.PUBLISH_CHECK_PRIVATE }}
+          # Dependabot's pull requests see only Dependabot secrets; the push to main runs the full check.
+          PUBLISH_CHECK_ALLOW_UNCONFIGURED: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && '1' || '' }}
+        run: scripts/publish-check.sh
+
+  shared-scripts:
+    # The copies of the organization's shared scripts are the source in just-tavrn/.github apart from their SPDX line.
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    uses: just-tavrn/.github/.github/workflows/shared-scripts.yml@main

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The container image (Dockerfile) through the organization's reusable workflow: built on every push to main (tag
+# `edge`) and on v* tags, pushed to ghcr.io/just-tavrn/tavrn-bot-platform. Gated by CI_ENABLED.
+name: Image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: Container image
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    uses: just-tavrn/.github/.github/workflows/docker-publish.yml@main
+    permissions:
+      contents: read
+      packages: write
+    with:
+      dockerfile: Dockerfile
+      image-name: tavrn-bot-platform
+      platforms: linux/amd64,linux/arm64
+      submodules: "false"
+      push: true

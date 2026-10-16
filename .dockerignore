@@ -1,0 +1,12 @@
+node_modules
+server/public
+.data
+data
+test-results
+playwright-report
+.git
+.github
+.env
+.env.*
+*.db
+tavrn-key-*.txt

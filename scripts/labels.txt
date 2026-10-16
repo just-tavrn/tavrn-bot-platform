@@ -1,0 +1,5 @@
+# Labels of this repository on top of the common set of scripts/github-labels.sh (name|colour|description).
+module|1d76db|A bot module (server/modules)
+ui|bfd4f2|The web dashboard
+raid-helper|d4c5f9|The raid helper and its game profiles
+ci|ededed|Workflows and build tooling

@@ -1,0 +1,105 @@
+{
+ "key": "ff14",
+ "name": "Final Fantasy XIV",
+ "classes": [
+  {
+   "name": "Tank",
+   "specs": [
+    {
+     "name": "Paladin",
+     "role": "tank"
+    },
+    {
+     "name": "Warrior",
+     "role": "tank"
+    },
+    {
+     "name": "Dark Knight",
+     "role": "tank"
+    },
+    {
+     "name": "Gunbreaker",
+     "role": "tank"
+    }
+   ]
+  },
+  {
+   "name": "Healer",
+   "specs": [
+    {
+     "name": "White Mage",
+     "role": "healer"
+    },
+    {
+     "name": "Scholar",
+     "role": "healer"
+    },
+    {
+     "name": "Astrologian",
+     "role": "healer"
+    },
+    {
+     "name": "Sage",
+     "role": "healer"
+    }
+   ]
+  },
+  {
+   "name": "DPS",
+   "specs": [
+    {
+     "name": "Monk",
+     "role": "dps"
+    },
+    {
+     "name": "Dragoon",
+     "role": "dps"
+    },
+    {
+     "name": "Ninja",
+     "role": "dps"
+    },
+    {
+     "name": "Samurai",
+     "role": "dps"
+    },
+    {
+     "name": "Reaper",
+     "role": "dps"
+    },
+    {
+     "name": "Viper",
+     "role": "dps"
+    },
+    {
+     "name": "Bard",
+     "role": "dps"
+    },
+    {
+     "name": "Machinist",
+     "role": "dps"
+    },
+    {
+     "name": "Dancer",
+     "role": "dps"
+    },
+    {
+     "name": "Black Mage",
+     "role": "dps"
+    },
+    {
+     "name": "Summoner",
+     "role": "dps"
+    },
+    {
+     "name": "Red Mage",
+     "role": "dps"
+    },
+    {
+     "name": "Pictomancer",
+     "role": "dps"
+    }
+   ]
+  }
+ ]
+}
