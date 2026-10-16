@@ -52,7 +52,7 @@ export default defineModule<S>({
       if (f.kind === "twitch") return twitch ? twitch.live(url) : null;
       return parseFeed(await fetchText(url, { allowPrivate: ctx.config.allowPrivateFeeds }));
     };
-    const check = async (room: Room, s: S, f: Feed) => {
+    const check = async (room: Room, f: Feed) => {
       const got = await items(f);
       if (!got) return;
       const seenKey = `seen:${f.id}`;
@@ -71,7 +71,7 @@ export default defineModule<S>({
           const key = `check:${f.id}`;
           if (Date.now() - Number(ctx.state.get(room, key) ?? 0) < s.intervalMinutes * 60_000) continue;
           ctx.state.set(room, key, String(Date.now()));
-          await check(room, s, f).catch((e: unknown) => ctx.log.info("feed check failed", { room: room.ref, feed: f.id, error: e }));
+          await check(room, f).catch((e: unknown) => ctx.log.info("feed check failed", { room: room.ref, feed: f.id, error: e }));
         }
       }
     });

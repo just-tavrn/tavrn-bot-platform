@@ -170,7 +170,7 @@ export default defineModule<S>({
       const recent = (await ctx.bot.messages(i.conversation, { limit: 100 })).filter((m) => !only || m.authorId === only.id).slice(0, count);
       if (!recent.length) return i.ephemeral("There is nothing to delete.");
       const from = recent.map((m) => m.createdAt).sort()[0]!;
-      const api = ctx.bot.api(room.node).moderation;
+      const api = ctx.bot.api(room.node).rooms;
       const req = { channel_ids: [i.channelId], from, to: new Date().toISOString(), author_id: only?.id ?? null };
       const preview = await api.purge(room.roomId, req);
       if (!preview.messages || !preview.confirm_token) return i.ephemeral("There is nothing to delete.");

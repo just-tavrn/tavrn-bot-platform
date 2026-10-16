@@ -202,7 +202,7 @@ export class FakeBot {
         },
       },
       channels: { update: async (...args: unknown[]) => this.record("channel", ...args) },
-      moderation: {
+      rooms: {
         purge: async (_room: string, req: { confirm_token?: string }) => {
           this.record("purge", req);
           return req.confirm_token ? { dry_run: false, messages: 5 } : { dry_run: true, messages: 5, confirm_token: "tok" };
