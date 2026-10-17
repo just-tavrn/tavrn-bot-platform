@@ -61,7 +61,8 @@ function bar(into: number, need: number): string {
 
 function board(db: Db, room: Room, page: number) {
   const lb = leaderboard(db, room, page);
-  const lines = lb.entries.map((e) => `${e.rank}. ${e.address} · level ${e.level} · ${e.xp} XP`);
+  // Handles, not bare addresses (clients show them as pills, never as e-mail links; no notification without mentions).
+  const lines = lb.entries.map((e) => `${e.rank}. ${at(e.address)} · level ${e.level} · ${e.xp} XP`);
   return withComponents(
     [`🏆 Leaderboard of ${room.name} (page ${lb.page + 1}/${lb.pages})`, ...(lines.length ? lines : ["Nobody has experience yet."])].join("\n"),
     row(button({ label: "Previous", customId: `levels:lb:${lb.page - 1}`, disabled: lb.page === 0 }), button({ label: "Next", customId: `levels:lb:${lb.page + 1}`, disabled: lb.page >= lb.pages - 1 })),
