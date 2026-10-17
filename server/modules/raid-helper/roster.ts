@@ -50,17 +50,6 @@ export function roster(signups: Signup[]): Record<Role | "bench" | "tentative" |
   };
 }
 
-/** The class/spec choices of a game as select menus of at most 25 options, a class never split across two. */
-export function specMenus(game: Game): { value: string; label: string; role: Role }[][] {
-  const menus: { value: string; label: string; role: Role }[][] = [[]];
-  game.classes.forEach((c, ci) => {
-    const opts = c.specs.map((s, si) => ({ value: `${ci}.${si}`, label: `${c.name} – ${s.name}`.slice(0, 100), role: s.role }));
-    if (menus.at(-1)!.length + opts.length > 25) menus.push([]);
-    menus.at(-1)!.push(...opts.slice(0, 25));
-  });
-  return menus.filter((m) => m.length);
-}
-
 /** The class and spec of a menu value (`<class index>.<spec index>`), or null for anything else. */
 export function specOf(game: Game, value: string): { cls: string; spec: string; role: Role } | null {
   const m = /^(\d{1,2})\.(\d{1,2})$/.exec(value);
