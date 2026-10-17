@@ -32,6 +32,7 @@ repository.
 ## Repository settings
 
 - Branch protection or ruleset on `main`: pull requests only, checks `JavaScript`, `Publication hygiene`,
-  `gitleaks` required (the organization's `scripts/github-rulesets.sh`).
+  `gitleaks`, `Dependency review` and `cla / Contributor license agreement` required (the organization's
+  `scripts/github-rulesets.sh`; inspect its generated check names).
 - Labels: `scripts/github-labels.sh` (common set plus `scripts/labels.txt`).
 - Private vulnerability reporting on (Security → Settings).
