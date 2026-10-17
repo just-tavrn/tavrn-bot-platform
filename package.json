@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=2",
     "e2e": "playwright test -c e2e/playwright.config.ts --project chromium --project mobile-android --workers=2",
-    "check": "scripts/check-spdx.sh && node scripts/check-js-licenses.mjs && pnpm typecheck && pnpm test"
+    "check": "bash scripts/ci-changes.test.sh && scripts/check-spdx.sh && node scripts/check-js-licenses.mjs && pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",

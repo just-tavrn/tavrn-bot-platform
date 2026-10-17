@@ -19,11 +19,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: What changed
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.classify.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: classify
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: bash scripts/ci-changes.sh >> "$GITHUB_OUTPUT"
+
   js:
     name: JavaScript
+    needs: changes
     if: ${{ vars.CI_ENABLED == 'true' }}
     uses: just-tavrn/.github/.github/workflows/js-ci.yml@main
     with:
+      skip: ${{ needs.changes.outputs.build != 'true' }}
       typecheck: pnpm typecheck
       test: pnpm test
       build: pnpm build
@@ -51,3 +73,15 @@ jobs:
     # The copies of the organization's shared scripts are the source in just-tavrn/.github apart from their SPDX line.
     if: ${{ vars.CI_ENABLED == 'true' }}
     uses: just-tavrn/.github/.github/workflows/shared-scripts.yml@main
+
+  change-filter:
+    name: Change filter and SPDX
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash scripts/ci-changes.test.sh
+      - run: bash scripts/check-spdx.sh

@@ -32,6 +32,15 @@ repository.
 ## Repository settings
 
 - Branch protection or ruleset on `main`: pull requests only, checks `JavaScript`, `Publication hygiene`,
-  `gitleaks` required (the organization's `scripts/github-rulesets.sh`).
+  `gitleaks`, `Dependency review` and `cla / Contributor license agreement` required (the organization's
+  `scripts/github-rulesets.sh`; inspect its generated check names).
 - Labels: `scripts/github-labels.sh` (common set plus `scripts/labels.txt`).
 - Private vulnerability reporting on (Security → Settings).
+
+## Builds and documentation changes
+
+`ci.yml` and `image.yml` use `scripts/ci-changes.sh` to skip application checks and container builds for
+repository administration only (root contribution/brand/readme documents, `docs/`, issue templates and the
+CLA, secret-scan and dependency-review workflows). CLA, secret scans, publication hygiene and the lightweight
+change-filter/SPDX check still run. Unknown paths, application code, dependencies, deployment files and the
+CI/image workflows trigger checks and builds. Manual runs and release tags always build.
