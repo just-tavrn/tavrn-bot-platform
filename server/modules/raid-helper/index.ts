@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Raid helper: events with sign-ups through components. Members pick class and spec in the card's menus and land in
- * the role the spec implies (or on the bench when it is full); Tentative, Bench and Decline are buttons; leaders and
+ * Raid helper: events with sign-ups through components. Members pick a class on the card and a spec in a private
+ * form, then land in the role the spec implies (or on the bench when it is full); Tentative, Bench and Decline are buttons; leaders and
  * moderators bench, move or remove members, close sign-ups or cancel through the Manage form. The card updates in
  * place; reminders go out 24 hours and 1 hour before. Games are data: shipped JSON files plus the room's own games.
  */
-import { button, modal, row, select, textInput, withComponents, type ComponentInteraction, type Interaction } from "@tavrn/bot";
+import { randomBytes } from "node:crypto";
+import { button, modal, row, select, selectInput, textInput, withComponents, type ComponentInteraction, type Interaction } from "@tavrn/bot";
 import type { Field } from "../../schema";
 import { Permission, can, qualify } from "../../tavrn";
 import { defineModule, type Item, type ModuleCtx, type Room, type Settings } from "../types";
 import { at, formatTime, post, utcToWall, wallToUtc } from "../util";
 import ff14 from "./games/ff14.json";
 import wow from "./games/wow.json";
-import { ROLES, parseSizes, roster, signUp, specMenus, specOf, type Game, type Role, type Signup, type Status } from "./roster";
+import { ROLES, parseSizes, roster, signUp, specOf, type Game, type Role, type Signup, type Status } from "./roster";
 
 export const SHIPPED: Game[] = [wow as Game, ff14 as Game];
 
@@ -52,6 +53,29 @@ type Ev = EventRow & { data: EventData };
 const ICON: Record<Role, string> = { tank: "🛡️", healer: "💚", dps: "⚔️" };
 const LABEL: Record<Role, string> = { tank: "Tanks", healer: "Healers", dps: "DPS" };
 const HOUR = 3_600_000;
+interface Selection {
+  token: string;
+  user: string;
+  userId: string;
+  classIndex: number;
+  game: string;
+  expires: number;
+}
+const selectionKey = (id: number, userId: string) => `selection:${id}:${userId}`;
+/** One personal pending form per event and member, bound to the exact game definition. */
+function selection(ctx: ModuleCtx<any>, room: Room, ev: Ev, userId: string): Selection | null {
+  const key = selectionKey(ev.id, userId);
+  const raw = ctx.state.get(room, key);
+  if (!raw) return null;
+  const value = JSON.parse(raw) as Selection;
+  if (value.expires > Date.now() && value.game === JSON.stringify(gameOf(ctx, room, ev.data.game))) return value;
+  ctx.state.del(room, key);
+  return null;
+}
+
+function clearSelections(ctx: ModuleCtx<any>, room: Room, id: number): void {
+  ctx.db.run("DELETE FROM module_state WHERE room_id = ? AND module = 'raid-helper' AND key LIKE ?", room.id, `selection:${id}:%`);
+}
 
 export default defineModule<S>({
   id: "raid-helper",
@@ -85,6 +109,7 @@ export default defineModule<S>({
         let ev: Ev;
         if (id) {
           const old = byId(ctx, room, id);
+          if (old) clearSelections(ctx, room, old.id);
           if (!old) throw new Error("This event does not exist");
           ctx.db.run("UPDATE raid_events SET json = ?, starts_at = ?, status = ? WHERE id = ?", JSON.stringify(data), startsAt, status, old.id);
           if (old.message_id && old.data.channel !== data.channel) {
@@ -102,6 +127,7 @@ export default defineModule<S>({
         const ev = byId(ctx, room, id);
         if (ev?.message_id) await ctx.bot.deleteMessage(ev.conversation, ev.message_id).catch(() => undefined);
         ctx.db.run("DELETE FROM raid_events WHERE id = ? AND room_id = ?", Number(id), room.id);
+        clearSelections(ctx, room, Number(id));
       },
     },
     games: {
@@ -141,7 +167,7 @@ export default defineModule<S>({
     /** The event of a card interaction (the card must be the event's own message). */
     const eventOf = (i: ComponentInteraction, room: Room) => {
       const ev = byId(ctx, room, (i.modalCustomId ?? i.customId ?? "").split(":")[2] ?? "");
-      return ev && ev.message_id === i.messageId ? ev : null;
+      return ev && ev.message_id === i.messageId && ev.conversation === i.conversation ? ev : null;
     };
     const open = (ev: Ev) => ev.status === "open" && Date.now() < ev.starts_at - ev.data.deadlineHours * HOUR && Date.now() < ev.starts_at;
     const save = (ev: Ev, s: Signup) =>
@@ -154,11 +180,13 @@ export default defineModule<S>({
       const mine = list.find((x) => x.user === i.user);
       if (status === "signup") {
         const last = mine?.spec ? mine : lastSpec(ctx, room, i.user, ev.data.game);
-        if (!last?.spec) return i.ephemeral("Pick your class and spec in the menu of the event.");
-        save(ev, signUp(list, caps(ev), i.user, last.class, last.spec, last.role as Role, mine?.status === "signed" ? mine.at : Date.now()));
+        const spec = gameOf(ctx, room, ev.data.game).classes.find((cls) => cls.name === last?.class)?.specs.find((spec) => spec.name === last?.spec);
+        if (!last || !spec) return i.ephemeral("Pick your class in the event menu, then your spec in the private form.");
+        save(ev, signUp(list, caps(ev), i.user, last.class, last.spec, spec.role, mine?.status === "signed" ? mine.at : Date.now()));
       } else {
         save(ev, { user: i.user, status, class: mine?.class ?? "", spec: mine?.spec ?? "", role: mine?.role ?? "", at: Date.now() });
       }
+      ctx.state.del(room, selectionKey(ev.id, i.userId));
       return i.update(card(ctx, room, ev));
     };
     ctx.component(/^raid:s:\d{1,10}$/, (i, room) => self(i, room, "signup"));
@@ -166,16 +194,58 @@ export default defineModule<S>({
     ctx.component(/^raid:b:\d{1,10}$/, (i, room) => self(i, room, "bench"));
     ctx.component(/^raid:d:\d{1,10}$/, (i, room) => self(i, room, "declined"));
 
-    ctx.component(/^raid:spec:\d{1,10}:\d$/, (i, room) => {
+    ctx.component(/^raid:class:\d{1,10}$/, async (i, room) => {
       const ev = eventOf(i, room);
       if (!ev) return i.ephemeral("This event does not exist any more.");
       if (!open(ev)) return i.ephemeral("Sign-ups for this event are closed.");
-      const choice = i.values?.length === 1 ? specOf(gameOf(ctx, room, ev.data.game), i.values[0]!) : null;
-      if (!choice) return i.ephemeral("Pick one class and spec of the menu.");
+      const game = gameOf(ctx, room, ev.data.game);
+      const value = i.values?.length === 1 ? i.values[0]! : "";
+      const classIndex = /^\d{1,2}$/.test(value) ? Number(value) : -1;
+      const cls = game.classes[classIndex];
+      if (!cls?.specs.length) return i.ephemeral("Pick one class of the menu.");
+      const pending: Selection = { token: randomBytes(8).toString("hex"), user: i.user, userId: i.userId, classIndex, game: JSON.stringify(game), expires: Date.now() + 15 * 60_000 };
+      // The room's state stays bounded to one latest form per member and event, rather than accumulating tokens.
+      ctx.state.set(room, selectionKey(ev.id, i.userId), JSON.stringify(pending));
+      const supported = await ctx.bot.api(room.node).node.info().then((node) => node.capabilities.includes("components.modal_select.v1"), () => false);
+      // A later class/status choice or event edit wins, even when node discovery replies arrive out of order.
+      const current = eventOf(i, room);
+      if (!current) return i.ephemeral("This event does not exist any more.");
+      if (!open(current)) return i.ephemeral("Sign-ups for this event are closed.");
+      if (selection(ctx, room, current, i.userId)?.token !== pending.token) return i.ephemeral("Choose your class again to open a new personal spec form.");
+      if (!supported) {
+        ctx.state.del(room, selectionKey(ev.id, i.userId));
+        return i.ephemeral("Personal spec selection needs a node update. Ask the node operator to enable the latest component support.");
+      }
+      return i.modal(modal(`raid:choose:${ev.id}:${pending.token}`, "Choose your spec", selectInput("spec", `${cls.name} spec`, cls.specs.map((spec, n) => ({ label: spec.name, value: `${classIndex}.${n}`, emoji: ICON[spec.role] })), { placeholder: "Choose your spec" })));
+    });
+    ctx.component(/^raid:page:\d{1,10}:\d$/, (i, room) => {
+      const ev = eventOf(i, room);
+      if (!ev) return i.ephemeral("This event does not exist any more.");
+      if (!open(ev)) return i.ephemeral("Sign-ups for this event are closed.");
+      const page = Number(i.customId!.split(":")[3]);
+      if (page * 25 >= gameOf(ctx, room, ev.data.game).classes.length) return i.ephemeral("This class page does not exist.");
+      return i.update(card(ctx, room, ev, page));
+    });
+    ctx.modal(/^raid:choose:\d{1,10}:[a-f0-9]{16}$/, (i, room) => {
+      const ev = eventOf(i, room);
+      if (!ev) return i.ephemeral("This event does not exist any more.");
+      if (!open(ev)) return i.ephemeral("Sign-ups for this event are closed.");
+      const pending = selection(ctx, room, ev, i.userId);
+      if (!pending || pending.user !== i.user || pending.userId !== i.userId || pending.token !== i.modalCustomId!.split(":")[3]) return i.ephemeral("Choose your class again to open a new personal spec form.");
+      const value = i.fields.spec ?? "";
+      const choice = Object.keys(i.fields).length === 1 && value.split(".")[0] === String(pending.classIndex) ? specOf(gameOf(ctx, room, ev.data.game), value) : null;
+      if (!choice) return i.ephemeral("Choose a spec of your selected class.");
       const list = signups(ctx, ev.id);
-      const s = signUp(list, caps(ev), i.user, choice.cls, choice.spec, choice.role, Date.now());
-      save(ev, s);
+      save(ev, signUp(list, caps(ev), i.user, choice.cls, choice.spec, choice.role, Date.now()));
+      ctx.state.del(room, selectionKey(ev.id, i.userId));
       return i.update(card(ctx, room, ev));
+    });
+    // Refresh cards from before personal forms were introduced; legacy controls cannot bypass this flow.
+    ctx.component(/^raid:spec:\d{1,10}:\d$/, async (i, room) => {
+      const ev = eventOf(i, room);
+      if (!ev) return i.ephemeral("This event does not exist any more.");
+      await i.update(card(ctx, room, ev));
+      return i.followUp("Choose your class on the updated card, then your spec in the personal form.", { ephemeral: true });
     });
 
     ctx.component(/^raid:m:\d{1,10}$/, async (i, room, s) => {
@@ -191,6 +261,7 @@ export default defineModule<S>({
       const action = (i.fields.action ?? "").trim().toLowerCase();
       const who = (i.fields.member ?? "").trim().toLowerCase().replace(/^@/, "");
       if (["close", "open", "cancel"].includes(action)) {
+        clearSelections(ctx, room, ev.id);
         ctx.db.run("UPDATE raid_events SET status = ? WHERE id = ?", action === "cancel" ? "cancelled" : action === "close" ? "closed" : "open", ev.id);
         return i.update(card(ctx, room, byId(ctx, room, ev.id)!));
       }
@@ -298,34 +369,58 @@ function eventFields(list: Game[]): Field[] {
 }
 
 /** The event card: the roster grouped by role with counts and caps, and the controls while it is not cancelled. */
-export function card(ctx: ModuleCtx<any>, room: Room, ev: Ev): Record<string, unknown> {
+export function card(ctx: ModuleCtx<any>, room: Room, ev: Ev, page = 0): Record<string, unknown> {
   const d = ev.data;
   const game = gameOf(ctx, room, d.game);
   const r = roster(signups(ctx, ev.id));
   // Members as handles (`@alice@node.example`): clients show them as pills; a bare address would read as an e-mail
   // address. The card carries no mentions list, so its edits notify nobody (PROTOCOL.md §7h).
-  const who = (list: Signup[], spec = true) => (list.length ? list.map((s) => `${at(s.user)}${spec && s.spec ? ` (${s.class} ${s.spec})` : ""}`).join(", ") : "–");
+  const who = (list: Signup[], spec: boolean, budget: number) => {
+    if (!list.length) return "–";
+    const visible: string[] = [];
+    for (const signup of list) {
+      const line = `• ${at(signup.user)}${spec && signup.spec ? ` — ${signup.class} · ${signup.spec}` : ""}`;
+      const left = list.length - visible.length - 1;
+      if ([...visible, line, ...(left ? [`… ${left} more`] : [])].join("\n").length > budget) break;
+      visible.push(line);
+    }
+    if (visible.length < list.length) visible.push(`… ${list.length - visible.length} more`);
+    const text = visible.join("\n");
+    return text.length <= budget ? text : "";
+  };
   const cap = (n: number) => (n ? `/${n}` : "");
   const signed = r.tank.length + r.healer.length + r.dps.length;
   const state = ev.status === "cancelled" ? "❌ Cancelled" : ev.status === "closed" ? "🔒 Sign-ups closed" : d.deadlineHours ? `Sign-ups close ${formatTime(ev.starts_at - d.deadlineHours * HOUR, room.timezone)}` : "Sign-ups open";
-  const body = [
-    `⚔️ **${d.title}** · ${game.name}`,
-    `🗓️ ${formatTime(ev.starts_at, room.timezone)} · leader ${at(d.leader)}`,
+  const intro = [
+    `⚔️ **${d.title}**\n${game.name}`,
+    `🗓️ **Start:** ${formatTime(ev.starts_at, room.timezone)}\n**Leader:** ${at(d.leader)}`,
     d.description,
-    ...ROLES.map((role) => `${ICON[role]} ${LABEL[role]} ${r[role].length}${cap(d[role === "tank" ? "tanks" : role === "healer" ? "healers" : "dps"])}: ${who(r[role])}`),
-    `🪑 Bench: ${who(r.bench)}`,
-    `❔ Tentative: ${who(r.tentative)} · 🚫 Declined: ${who(r.declined, false)}`,
-    `Signed up ${signed}${cap(d.max)} · ${state}`,
-  ].filter(Boolean).join("\n");
+  ].filter(Boolean);
+  const ending = [
+    `**Signed up:** ${signed}${cap(d.max)}\n${state}`,
+    ev.status === "open" ? "Choose your class below, then choose your spec in the private form. Sign up reuses your last spec." : "",
+  ].filter(Boolean);
+  const groups: [string, Signup[], boolean][] = ROLES.map((role) => [`${ICON[role]} **${LABEL[role]} · ${r[role].length}${cap(d[role === "tank" ? "tanks" : role === "healer" ? "healers" : "dps"])}**`, r[role], true]);
+  if (r.bench.length) groups.push([`🪑 **Bench · ${r.bench.length}**`, r.bench, true]);
+  if (r.tentative.length) groups.push([`❔ **Tentative · ${r.tentative.length}**`, r.tentative, true]);
+  if (r.declined.length) groups.push([`🚫 **Declined · ${r.declined.length}**`, r.declined, false]);
+  // PROTOCOL.md §7 limits the whole body to 4000 characters. Keep complete member lines and exact totals;
+  // divide the remaining space between groups so every role/status stays visible in large raids.
+  const remaining = 4000 - [...intro, ...ending].join("\n\n").length - groups.reduce((n, [heading]) => n + heading.length + 3, 0);
+  const budget = Math.max(0, Math.floor(remaining / groups.length));
+  const body = [...intro, ...groups.map(([heading, list, spec]) => `${heading}\n${who(list, spec, budget)}`), ...ending].join("\n\n");
   if (ev.status === "cancelled") return { type: "text", body };
   const id = ev.id;
   const rows = [];
   if (ev.status === "open") {
     rows.push(row(button({ label: "Sign up", style: "success", emoji: "✅", customId: `raid:s:${id}` }), button({ label: "Tentative", emoji: "❔", customId: `raid:t:${id}` }), button({ label: "Bench", emoji: "🪑", customId: `raid:b:${id}` }), button({ label: "Decline", style: "danger", customId: `raid:d:${id}` })));
-    const menus = specMenus(game).slice(0, 3);
-    menus.forEach((m, n) => rows.push(row(select(`raid:spec:${id}:${n}`, m.map((o) => ({ label: o.label, value: o.value, emoji: ICON[o.role] })), { placeholder: menus.length > 1 ? `Class and spec (${m[0]!.label.split(" – ")[0]} – ${m.at(-1)!.label.split(" – ")[0]})` : "Class and spec" }))));
+    const classes = game.classes.slice(page * 25, (page + 1) * 25).map((c, n) => ({ label: c.name, value: String(page * 25 + n) }));
+    if (classes.length) rows.push(row(select(`raid:class:${id}`, classes, { placeholder: game.classes.length > 25 ? `Choose your class (${page + 1}/${Math.ceil(game.classes.length / 25)})` : "Choose your class" })));
   }
-  rows.push(row(button({ label: "Manage", emoji: "⚙️", customId: `raid:m:${id}` })));
+  rows.push(row(
+    ...(ev.status === "open" && game.classes.length > 25 ? [button({ label: page ? "Previous classes" : "More classes", customId: `raid:page:${id}:${page ? 0 : 1}` })] : []),
+    button({ label: "Manage", emoji: "⚙️", customId: `raid:m:${id}` }),
+  ));
   return withComponents(body, ...rows);
 }
 

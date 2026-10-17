@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
 import wow from "./games/wow.json";
-import { hasRoom, parseSizes, roster, signUp, specMenus, specOf, type Game, type Signup } from "./roster";
+import { hasRoom, parseSizes, roster, signUp, specOf, type Game, type Signup } from "./roster";
 
 const game = wow as Game;
 const caps = { max: 3, tank: 1, healer: 1, dps: 0 };
@@ -24,11 +24,7 @@ describe("raid roster", () => {
     expect(r.bench.map((x) => x.user)).toEqual(["w"]);
     expect(r.tank).toEqual([]);
   });
-  it("offers every WoW spec in menus of at most 25 without splitting a class", () => {
-    const menus = specMenus(game);
-    expect(menus.flat()).toHaveLength(40);
-    expect(menus.every((m) => m.length <= 25)).toBe(true);
-    expect(menus[0]!.at(-1)!.label).toBe("Paladin – Retribution");
+  it("looks up only valid class/spec pairs", () => {
     expect(specOf(game, "7.0")).toEqual({ cls: "Paladin", spec: "Holy", role: "healer" });
     expect(specOf(game, "99.0")).toBeNull();
     expect(specOf(game, "1.0; drop table")).toBeNull();

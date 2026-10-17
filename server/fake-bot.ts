@@ -197,8 +197,10 @@ export class FakeBot {
   async dm(to: string, content: unknown) {
     this.dms.push({ to, content });
   }
+  nodeCapabilities = ["components.v1", "components.modal_select.v1"];
   api() {
     return {
+      node: { info: async () => ({ capabilities: this.nodeCapabilities }) },
       members: {
         update: async (_room: string, userId: string, req: { roles: string[] }) => {
           this.record("roles", userId, req.roles);
@@ -232,8 +234,8 @@ export class FakeBot {
     await this.find(this.components, customId)(i);
     return i;
   }
-  async submit(modalId: string, fields: Record<string, string>, who: FakeUser = OWNER, messageId: string | null = null) {
-    const i = new FakeInteraction(who.user, who.userId, who.permissions ?? 0n, FAKE_ROOM, CH.general, {}, { id: "", name: "" }, null, messageId, null, fields);
+  async submit(modalId: string, fields: Record<string, string>, who: FakeUser = OWNER, messageId: string | null = null, channelId: string = CH.general) {
+    const i = new FakeInteraction(who.user, who.userId, who.permissions ?? 0n, FAKE_ROOM, channelId, {}, { id: "", name: "" }, null, messageId, null, fields);
     i.modalCustomId = modalId;
     await this.find(this.modals, modalId)(i);
     return i;

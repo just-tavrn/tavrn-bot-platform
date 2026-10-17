@@ -160,8 +160,11 @@ command the tavrn client already has (`CLIENT_COMMANDS` in `server/tavrn.ts`): t
 In the dashboard: room → *Raid helper* → *Games* → *New*: a name, classes, and for each class its specs with the role
 they play (tank, healer, DPS). Shipped games are JSON files in `server/modules/raid-helper/games/`
 (`{ "key", "name", "classes": [{ "name", "specs": [{ "name", "role" }] }] }`); add one there and list it in
-`SHIPPED` in `server/modules/raid-helper/index.ts`. A game whose classes have more than 25 specs in total is shown
-in several menus (at most three on a card).
+`SHIPPED` in `server/modules/raid-helper/index.ts`. Members choose a class in a single menu on the event card, then choose only that class's specs in a personal form
+visible to them alone. Choosing a class does not change anyone else's form. Games with more than 25 classes use
+class-page buttons. Personal spec forms expire after 15 minutes; choosing a class again replaces only your own
+previous form for that event. This needs a node and client with `components.modal_select.v1` support. Long rosters preserve role and attendance
+totals and summarize omitted members so the card stays within the message limit.
 
 ## Development
 
