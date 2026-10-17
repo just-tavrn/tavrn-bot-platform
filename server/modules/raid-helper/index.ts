@@ -302,7 +302,9 @@ export function card(ctx: ModuleCtx<any>, room: Room, ev: Ev): Record<string, un
   const d = ev.data;
   const game = gameOf(ctx, room, d.game);
   const r = roster(signups(ctx, ev.id));
-  const who = (list: Signup[], spec = true) => (list.length ? list.map((s) => `${s.user}${spec && s.spec ? ` (${s.class} ${s.spec})` : ""}`).join(", ") : "–");
+  // Members as handles (`@alice@node.example`): clients show them as pills; a bare address would read as an e-mail
+  // address. The card carries no mentions list, so its edits notify nobody (PROTOCOL.md §7h).
+  const who = (list: Signup[], spec = true) => (list.length ? list.map((s) => `${at(s.user)}${spec && s.spec ? ` (${s.class} ${s.spec})` : ""}`).join(", ") : "–");
   const cap = (n: number) => (n ? `/${n}` : "");
   const signed = r.tank.length + r.healer.length + r.dps.length;
   const state = ev.status === "cancelled" ? "❌ Cancelled" : ev.status === "closed" ? "🔒 Sign-ups closed" : d.deadlineHours ? `Sign-ups close ${formatTime(ev.starts_at - d.deadlineHours * HOUR, room.timezone)}` : "Sign-ups open";

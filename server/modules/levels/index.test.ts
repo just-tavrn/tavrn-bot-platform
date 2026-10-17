@@ -36,7 +36,7 @@ describe("levels", () => {
     for (let n = 0; n < 12; n++) t.db.run("INSERT INTO xp (room_id, user_id, address, xp) VALUES (?, ?, ?, ?)", t.room.id, `u${n}`, `u${n}@x`, n * 10);
     expect(leaderboard(t.db, t.room, 1)).toMatchObject({ page: 1, pages: 2, entries: [{ rank: 11, address: "u1@x" }, { rank: 12 }] });
     const first = await t.fake.invoke("leaderboard", {}, OWNER, CH.general);
-    expect(first.text).toContain("1. u11@x");
+    expect(first.text).toContain("1. @u11@x");
     expect((await t.fake.click("levels:lb:1")).text).toContain("page 2/2");
   });
 });
