@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# The container image (Dockerfile) through the organization's reusable workflow: built on every push to main (tag
+# The container image (Dockerfile) through the organization's reusable workflow: built on relevant pushes to main (tag
 # `edge`) and on v* tags, pushed to ghcr.io/just-tavrn/tavrn-bot-platform. Gated by CI_ENABLED.
 name: Image
 
@@ -18,9 +18,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: What changed
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.classify.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: classify
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: bash scripts/ci-changes.sh >> "$GITHUB_OUTPUT"
+
   image:
     name: Container image
-    if: ${{ vars.CI_ENABLED == 'true' }}
+    needs: changes
+    if: ${{ vars.CI_ENABLED == 'true' && needs.changes.outputs.build == 'true' }}
     uses: just-tavrn/.github/.github/workflows/docker-publish.yml@main
     permissions:
       contents: read
