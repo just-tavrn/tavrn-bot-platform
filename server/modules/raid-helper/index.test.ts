@@ -26,17 +26,20 @@ describe("raid helper", () => {
     expect(json).toContain("raid:spec:1:1");
     expect(json).toContain("Paladin – Holy");
     expect(await events.list!(t.room)).toMatchObject([{ title: "Molten Core", signed: "0/3", status: "open", leader: OWNER.user }]);
+    // The leader as a handle (a pill in clients, never an e-mail link); the card notifies nobody (no mentions list).
+    expect(json).toContain(`leader @${OWNER.user}`);
+    expect((t.fake.sent[0]!.opts as { mentions?: string[] } | undefined)?.mentions).toBeUndefined();
   });
 
   it("signs up by spec into the role, benches when the role is full and reuses the spec", async () => {
     const { click } = await created();
     const first = await click("raid:spec:#:0", MEMBER, ["7.1"]); // Paladin Protection: tank
-    expect(first.text).toContain("🛡️ Tanks 1/1: member@fake.example (Paladin Protection)");
+    expect(first.text).toContain("🛡️ Tanks 1/1: @member@fake.example (Paladin Protection)");
     const second = await click("raid:spec:#:0", ALICE, ["0.0"]); // Death Knight Blood: tank, full
-    expect(second.text).toContain("🪑 Bench: alice@fake.example (Death Knight Blood)");
+    expect(second.text).toContain("🪑 Bench: @alice@fake.example (Death Knight Blood)");
     await click("raid:d:#", MEMBER);
     const again = await click("raid:s:#", MEMBER);
-    expect(again.text).toContain("Tanks 1/1: member@fake.example");
+    expect(again.text).toContain("Tanks 1/1: @member@fake.example");
     expect((await click("raid:spec:#:0", ALICE, ["40.9"])).text).toContain("Pick one class");
     expect((await click("raid:s:#", OWNER)).text).toContain("Pick your class");
   });
@@ -47,7 +50,7 @@ describe("raid helper", () => {
     expect((await click("raid:m:#", MEMBER)).text).toContain("Only the raid leader");
     expect((await click("raid:m:#", OWNER)).answers[0]?.type).toBe("modal");
     const moved = await t.fake.submit("raid:mm:1", { member: MEMBER.user, action: "healer" }, OWNER, t.fake.sent[0]!.id);
-    expect(moved.text).toContain("💚 Healers 1/1: member@fake.example");
+    expect(moved.text).toContain("💚 Healers 1/1: @member@fake.example");
     const closed = await t.fake.submit("raid:mm:1", { member: "", action: "close" }, OWNER, t.fake.sent[0]!.id);
     expect(closed.text).toContain("Sign-ups closed");
     expect((await click("raid:b:#", MEMBER)).text).toContain("closed");
