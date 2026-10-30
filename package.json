@@ -22,8 +22,8 @@
     "@hono/node-server": "^2.1.5",
     "@tavrn/bot": "github:just-tavrn/tavrn-js#ce905e164328c30bb69a5a1632367796a000d375&path:bot",
     "@tavrn/sdk": "github:just-tavrn/tavrn-js#ce905e164328c30bb69a5a1632367796a000d375&path:sdk",
-    "hono": "^4.13.13",
-    "nodemailer": "^10.1.1",
+    "hono": "^4.13.14",
+    "nodemailer": "^10.2.1",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
@@ -31,14 +31,14 @@
     "@fontsource-variable/inter": "^5.3.0",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@testing-library/preact": "^3.2.4",
+    "@testing-library/preact": "^3.2.6",
     "@types/node": "^24.19.1",
     "@types/nodemailer": "^8.0.2",
-    "happy-dom": "^21.0.3",
+    "happy-dom": "^21.0.4",
     "preact": "^10.29.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.3"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
