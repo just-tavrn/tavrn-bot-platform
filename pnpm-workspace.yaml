@@ -9,7 +9,6 @@ allowBuilds:
 # The @tavrn packages are released together and installed while fresh.
 minimumReleaseAgeExclude:
   - "@tavrn/*"
-  - happy-dom@21.0.3
 
 # Keep all bot runtime packages on the same tested commit until the next package release.
 blockExoticSubdeps: false

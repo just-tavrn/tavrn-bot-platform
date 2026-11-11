@@ -48,6 +48,23 @@ describe("generic form", () => {
   });
 });
 
+describe("text and date fields", () => {
+  it("renders a string as a text input with its length limit and a datetime as a native date-time picker", () => {
+    const own: Field[] = [
+      { key: "title", type: "string", label: "Title", max: 40 },
+      { key: "start", type: "datetime", label: "Start", required: true },
+    ];
+    const { container } = render(<Form fields={own} value={{ title: "Raid", start: "2026-11-11T20:00" }} onChange={() => {}} room={room} />);
+    const title = screen.getByRole("textbox", { name: "Title" });
+    expect(title.getAttribute("type")).toBe("text");
+    expect(title.getAttribute("maxlength")).toBe("40");
+    const start = container.querySelector<HTMLInputElement>('input[type="datetime-local"]');
+    expect(start?.value).toBe("2026-11-11T20:00");
+    expect(start?.required).toBe(true);
+    expect(start?.hasAttribute("maxlength")).toBe(false);
+  });
+});
+
 describe("UI strings", () => {
   it("has every key in English and German", () => {
     expect(Object.keys(STRINGS.de).sort()).toEqual(Object.keys(STRINGS.en).sort());
