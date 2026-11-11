@@ -16,14 +16,16 @@ export function Box({ title, children }: { title: string; children: ComponentChi
   );
 }
 
-export function Input({ label, type = "text", value, onInput, autocomplete, hint }: { label: string; type?: string; value: string; onInput: (v: string) => void; autocomplete?: string; hint?: string }) {
+/** An address or password field. Preact types `<input>` attributes per `type`, so each type is its own element. */
+export function Input({ label, type, value, onInput, autocomplete, hint }: { label: string; type: "email" | "password"; value: string; onInput: (v: string) => void; autocomplete?: string; hint?: string }) {
   const id = `f-${label.replace(/\W+/g, "-").toLowerCase()}`;
+  const common = { id, class: "input", value, required: true, autocomplete, "aria-describedby": hint ? `${id}-hint` : undefined, onInput: (e: { currentTarget: HTMLInputElement }) => onInput(e.currentTarget.value) };
   return (
     <div>
       <label for={id} class="mb-1 block text-sm font-medium text-fg-1">
         {label}
       </label>
-      <input id={id} class="input" type={type} value={value} required autocomplete={autocomplete} aria-describedby={hint ? `${id}-hint` : undefined} onInput={(e) => onInput(e.currentTarget.value)} />
+      {type === "password" ? <input {...common} type="password" /> : <input {...common} type="email" />}
       {hint && <p id={`${id}-hint`} class="mt-1 text-xs text-fg-2">{hint}</p>}
     </div>
   );

@@ -57,11 +57,18 @@ function FieldInput({ field: f, value, onChange, room }: { field: Field; value: 
         </div>
       );
     case "string":
+      return (
+        <div>
+          {label}
+          <input {...common} type="text" class="input" maxLength={f.max} value={String(value ?? "")} onInput={(e) => onChange(e.currentTarget.value)} />
+          {help}
+        </div>
+      );
     case "datetime":
       return (
         <div>
           {label}
-          <input {...common} type={f.type === "datetime" ? "datetime-local" : "text"} class="input" maxLength={f.max} value={String(value ?? "")} onInput={(e) => onChange(e.currentTarget.value)} />
+          <input {...common} type="datetime-local" class="input" value={String(value ?? "")} onInput={(e) => onChange(e.currentTarget.value)} />
           {help}
         </div>
       );
