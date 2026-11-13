@@ -22,23 +22,23 @@
     "@hono/node-server": "^2.1.6",
     "@tavrn/bot": "github:just-tavrn/tavrn-js#ce905e164328c30bb69a5a1632367796a000d375&path:bot",
     "@tavrn/sdk": "github:just-tavrn/tavrn-js#ce905e164328c30bb69a5a1632367796a000d375&path:sdk",
-    "hono": "^4.13.16",
-    "nodemailer": "^10.3.1",
+    "hono": "^4.13.17",
+    "nodemailer": "^10.5.0",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@playwright/test": "1.63.0",
-    "@tailwindcss/vite": "^4.3.4",
+    "@tailwindcss/vite": "^4.3.5",
     "@testing-library/preact": "^3.2.6",
     "@types/node": "^24.19.1",
     "@types/nodemailer": "^8.0.2",
     "happy-dom": "^21.0.4",
     "preact": "^11.2.0",
-    "tailwindcss": "^4.3.4",
+    "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5",
+    "vite": "^8.3.7",
     "vitest": "^5.1.0"
   }
 }
